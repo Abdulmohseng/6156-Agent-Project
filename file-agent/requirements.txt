@@ -1,0 +1,7 @@
+langgraph
+langchain-ollama
+langchain-core
+pdfplumber
+python-docx
+rich
+requests

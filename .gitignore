@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Test output
+file-agent/test-output/
+
+# Logs
+~/.file-agent/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

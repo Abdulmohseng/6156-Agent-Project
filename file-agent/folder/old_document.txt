@@ -1,0 +1,29 @@
+MEETING NOTES — Sprint Planning Q2 2026
+Date: March 9, 2026, 10:00–11:30 AM
+Location: Zoom (link in calendar invite)
+Attendees: Abdul M. (lead), Sara K. (design), James R. (backend), Priya N. (QA)
+
+AGENDA & NOTES
+
+1. Sprint 14 Retrospective (10 min)
+   - Velocity: 42 points (target was 45)
+   - Blockers: Auth service refactor took 3 days longer than estimated
+   - What went well: QA turnaround time improved, zero regressions in prod
+
+2. Sprint 15 Goals (30 min)
+   - [Abdul]  Implement payment webhook handler (Stripe) — 8 pts
+   - [James]  Refactor user session management to use Redis — 5 pts
+   - [Sara]   Deliver final designs for notification center — 3 pts
+   - [Priya]  Automate regression suite for checkout flow — 5 pts
+   - Stretch: Begin API versioning (v2 prefix) — 3 pts
+
+3. Dependency Updates (10 min)
+   - Node.js: upgrade from 18 to 20 LTS (James owns)
+   - Postgres: plan migration from 14 to 16 in Sprint 16
+
+4. Action Items
+   [Abdul]  Update sprint board by EOD today
+   [James]  Share Redis architecture doc by Wednesday
+   [Sara]   Finalize design tokens in Figma by Thursday
+
+Next meeting: Sprint 15 kickoff, March 16, 10:00 AM
