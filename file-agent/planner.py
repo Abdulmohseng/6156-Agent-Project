@@ -15,6 +15,7 @@ from config import (
     CONTENT_PREVIEW_MAX_CHARS,
     CONTENT_PREVIEW_MAX_BYTES,
 )
+from config_vision import IMAGE_EXTENSIONS, VISION_MODEL
 
 SYSTEM_PROMPT = """/no_think
 You are a file organization planner. You will receive:
@@ -36,15 +37,20 @@ Rules:
 - Never move files to a folder that hasn't been created yet
 - Use full absolute paths in all args (no ~)
 - Use EXACTLY the filename as it appears in the file listing — do not invent or guess filenames
-- When file names are ambiguous or generic (e.g. doc1.txt, stuff.txt, file10.txt),
-  you MUST include a read_file step for each file before deciding where to move it
-  or what to rename it to
-- When renaming, use a short descriptive snake_case name that reflects the actual
-  content (e.g. invoice_acme_feb2026.txt, doctor_visit_jan2026.txt)
+- When file names are ambiguous or generic (e.g. doc1.txt, img001.jpg, stuff.txt, file10.txt,
+  photo_002.png), you MUST include a read_file step for each file before deciding where to
+  move it or what to rename it
+- When a file has a generic or non-descriptive name, you MUST rename it to a short descriptive
+  snake_case name that reflects the actual content BEFORE moving it. This applies to both text
+  files AND image files. Examples:
+    doc1.txt        → invoice_acme_feb2026.txt   (based on content preview)
+    img001.jpg      → beach_sunset_travel.jpg    (based on image description)
+    img004.jpg      → golden_retriever_dog.jpg   (based on image description)
+    stuff.txt       → gym_log_mar2026.txt        (based on content preview)
 - Rename BEFORE moving: rename_file first, then move_file using the NEW renamed path
 - After renaming a file, all subsequent steps that reference that file MUST use the new path
 - Group files into meaningful semantic folders (Finance, Health, Work, Travel,
-  Personal, Education, etc.) — not by extension
+  Personal, Nature, Animals, Food, Education, etc.) — not by extension
 
 Output ONLY valid JSON, no explanation, no markdown fences, no extra text.
 
@@ -217,12 +223,117 @@ def _fix_broken_steps(plan: list[dict], broken: list[tuple],
     return plan
 
 
+def _generate_image_filename(original_name: str, description: str, llm) -> str:
+    """
+    Ask the LLM to produce a short snake_case filename for an image given its
+    description. Returns the new filename (with original extension preserved).
+    Falls back to the original name if parsing fails.
+    """
+    ext = Path(original_name).suffix
+    prompt = (
+        f"Generate a short, descriptive snake_case filename for an image file.\n"
+        f"Original filename: {original_name}\n"
+        f"Image description: {description}\n\n"
+        f"Rules:\n"
+        f"- Maximum 4 words, snake_case, no spaces\n"
+        f"- Do NOT include the file extension\n"
+        f"- Output ONLY the stem (no extension, no explanation)\n"
+        f"Examples: beach_sunset, golden_retriever_dog, mountain_trail, city_skyline_night"
+    )
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        raw = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
+        # Strip any extension the model may have added, quotes, or extra whitespace
+        stem = raw.strip().strip('"\'').split()[0]
+        stem = re.sub(r"\.[a-zA-Z]{2,5}$", "", stem)
+        stem = re.sub(r"[^\w]", "_", stem).strip("_")
+        if stem:
+            return stem + ext
+    except Exception as e:
+        log_warning(f"[PLANNER] Could not generate filename for {original_name}: {e}")
+    return original_name
+
+
+def _inject_image_renames(
+    plan: list[dict],
+    image_descriptions: dict[str, str],
+    folder: str,
+    llm,
+) -> list[dict]:
+    """
+    For every image in `image_descriptions` that has no rename_file step in the
+    plan, generate a descriptive filename and inject a rename_file step immediately
+    before its move_file step (updating the move_file src to use the new path).
+    All step numbers are renumbered at the end.
+    """
+    if not image_descriptions:
+        return plan
+
+    # Which images already have a rename step in the plan?
+    already_renamed = set()
+    for step in plan:
+        if step.get("tool") == "rename_file":
+            src = step.get("args", {}).get("path", "")
+            already_renamed.add(Path(src).name)
+
+    # Build new plan, injecting rename steps where needed
+    new_plan = []
+    for step in plan:
+        tool = step.get("tool", "")
+        args = step.get("args", {})
+
+        if tool == "move_file":
+            src_path = args.get("src", "")
+            src_name = Path(src_path).name
+            if src_name in image_descriptions and src_name not in already_renamed:
+                description = image_descriptions[src_name]
+                new_filename = _generate_image_filename(src_name, description, llm)
+                new_path = str(Path(src_path).parent / new_filename)
+
+                log_info(f"[PLANNER] Injecting rename: {src_name} → {new_filename}")
+
+                # Inject rename_file step before this move
+                rename_step = {
+                    "step": 0,  # renumbered below
+                    "description": f"Rename {src_name} to descriptive name {new_filename}",
+                    "tool": "rename_file",
+                    "args": {"path": src_path, "new_name": new_filename},
+                }
+                new_plan.append(rename_step)
+
+                # Update move_file to use the new path
+                updated_step = {
+                    **step,
+                    "args": {**args, "src": new_path},
+                }
+                new_plan.append(updated_step)
+                already_renamed.add(src_name)
+                continue
+
+        new_plan.append(step)
+
+    # Renumber all steps sequentially
+    for i, step in enumerate(new_plan):
+        new_plan[i] = {**step, "step": i + 1}
+
+    injected = len(new_plan) - len(plan)
+    if injected:
+        log_info(f"[PLANNER] Injected {injected} rename step(s) for generic image names.")
+
+    return new_plan
+
+
 def planner_node(state: AgentState) -> dict:
     """
     Planner node: lists files in the target folder, then calls the LLM to generate
     a JSON step plan. Validates all source paths against the real filesystem and
     makes a targeted correction call if any are wrong before returning.
     """
+    # If a plan was already generated (e.g. for pre-run user confirmation), skip re-planning
+    if state.get("plan"):
+        log_info("[PLANNER] Plan already exists — skipping re-plan.")
+        return {}
+
     log_info("\n[PLANNER] Analyzing folder and generating plan...")
 
     folder = state["folder"]
@@ -234,7 +345,10 @@ def planner_node(state: AgentState) -> dict:
     files = file_listing_result.get("files", [])
 
     # Build file summary with inline content previews for ambiguous text files
+    # Also collect image descriptions for programmatic rename injection later
     file_summary_lines = []
+    image_descriptions: dict[str, str] = {}  # {filename: description}
+
     for f in files:
         size_kb = round(f["size_bytes"] / 1024, 1)
         stem = f["name"].rstrip("0123456789_- ").lower().split(".")[0]
@@ -246,12 +360,24 @@ def planner_node(state: AgentState) -> dict:
         if (f["extension"] in TEXT_EXTENSIONS
                 and is_ambiguous
                 and f["size_bytes"] < CONTENT_PREVIEW_MAX_BYTES):
+            # Ambiguous text file — read content inline so planner can classify
             from tools import read_file as _read_file
             result = _read_file.invoke({"path": f["full_path"], "max_chars": CONTENT_PREVIEW_MAX_CHARS})
             preview = result.get("content", "").strip().replace("\n", " ↵ ")[:CONTENT_PREVIEW_MAX_CHARS]
             file_summary_lines.append(
                 f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)\n"
                 f"    CONTENT PREVIEW: {preview}"
+            )
+        elif f["extension"] in IMAGE_EXTENSIONS and is_ambiguous:
+            # Ambiguous image file — describe via vision model so planner can classify
+            from tools import read_file as _read_file
+            log_info(f"[PLANNER] Describing image via {VISION_MODEL}: {f['name']}")
+            result = _read_file.invoke({"path": f["full_path"], "max_chars": CONTENT_PREVIEW_MAX_CHARS})
+            preview = result.get("content", "").strip().replace("\n", " ")[:CONTENT_PREVIEW_MAX_CHARS]
+            image_descriptions[f["name"]] = preview  # store for rename injection
+            file_summary_lines.append(
+                f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)\n"
+                f"    IMAGE DESCRIPTION: {preview}"
             )
         else:
             file_summary_lines.append(f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)")
@@ -288,6 +414,10 @@ def planner_node(state: AgentState) -> dict:
                 f"[PLANNER] {len(broken)} step(s) reference files that don't exist — fixing..."
             )
             plan = _fix_broken_steps(plan, broken, files, folder, llm)
+
+    # ── Programmatically inject rename steps for generic-named images ──────────
+    if image_descriptions:
+        plan = _inject_image_renames(plan, image_descriptions, folder, llm)
 
     log_info(f"[PLANNER] Generated {len(plan)}-step plan.")
 
