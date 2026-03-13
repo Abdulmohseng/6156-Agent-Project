@@ -2,6 +2,7 @@ import os
 import base64
 from pathlib import Path
 from langchain_core.tools import tool
+from config_vision import VISION_MODEL, VISION_PROMPT
 
 TEXT_EXTENSIONS = {".txt", ".md", ".json", ".csv", ".py", ".js", ".ts", ".html",
                    ".htm", ".css", ".log", ".yaml", ".yml", ".toml", ".xml",
@@ -23,7 +24,7 @@ def _describe_image(path: str, model: str) -> str:
 
         llm = ChatOllama(model=model, temperature=0)
         msg = HumanMessage(content=[
-            {"type": "text", "text": "Describe this image for file organization. What is it? What category?"},
+            {"type": "text", "text": VISION_PROMPT},
             {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{image_data}"}},
         ])
         return llm.invoke([msg]).content
@@ -73,9 +74,9 @@ def read_file(path: str, max_chars: int = 3000, model: str = "qwen3:8b") -> dict
                         if t:
                             pages_text.append(t)
                     raw = "\n".join(pages_text)
-                if len(raw) < 50 and model.endswith("-vl:8b"):
-                    # Scanned PDF — try vision
-                    content = _describe_image(path, model)
+                if len(raw) < 50:
+                    # Scanned PDF — try vision model
+                    content = _describe_image(path, VISION_MODEL)
                     file_type = "pdf-vision"
                 else:
                     if len(raw) > max_chars:
@@ -102,7 +103,8 @@ def read_file(path: str, max_chars: int = 3000, model: str = "qwen3:8b") -> dict
 
         elif ext in IMAGE_EXTENSIONS:
             file_type = "image"
-            content = _describe_image(path, model)
+            # Always use the dedicated vision model for image files
+            content = _describe_image(path, VISION_MODEL)
 
         else:
             # Binary or unknown — return metadata only

@@ -23,6 +23,7 @@ import requests
 from rich.console import Console
 
 from config import DEFAULT_MODEL, DEFAULT_FOLDER, OLLAMA_BASE_URL
+from config_vision import VISION_MODEL, VISION_TEST_FOLDER
 
 console = Console()
 
@@ -170,9 +171,15 @@ def main():
                         help=f"Ollama model name (default: {DEFAULT_MODEL})")
     parser.add_argument("--test-run", action="store_true",
                         help=(
-                            "Copy the built-in sample folder (file-agent/folder/) into "
-                            "test-output/run_TIMESTAMP/ and run the agent on that copy. "
-                            "Originals are never modified."
+                            "Copy a built-in sample folder into test-output/run_TIMESTAMP/ "
+                            "and run the agent on that copy. Originals are never modified."
+                        ))
+    parser.add_argument("--test-folder", default="folder",
+                        choices=["folder", VISION_TEST_FOLDER],
+                        help=(
+                            "Which built-in sample folder to use with --test-run. "
+                            "'folder' = text files only (default). "
+                            f"'{VISION_TEST_FOLDER}' = images + text files (uses {VISION_MODEL})."
                         ))
 
     args = parser.parse_args()
@@ -180,12 +187,12 @@ def main():
     # Generate a run ID from timestamp — shared by the manifest and test-run folder name
     run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    # --test-run: override --folder with a fresh copy of the built-in sample folder
+    # --test-run: override --folder with a fresh copy of the chosen built-in sample folder
     if args.test_run:
         here = Path(__file__).parent
-        source_folder = here / "folder"
+        source_folder = here / args.test_folder
         if not source_folder.exists():
-            console.print("[red]Error: Sample folder not found at file-agent/folder/[/red]")
+            console.print(f"[red]Error: Sample folder not found at file-agent/{args.test_folder}/[/red]")
             sys.exit(1)
         dest_folder = here / "test-output" / f"run_{run_id}"
         shutil.copytree(str(source_folder), str(dest_folder))
@@ -201,11 +208,12 @@ def main():
     _check_ollama(args.model)
 
     console.print(f"\n[bold cyan]File Organization Agent[/bold cyan]")
-    console.print(f"  Goal   : {args.goal}")
-    console.print(f"  Folder : {folder}")
-    console.print(f"  Model  : {args.model}")
-    console.print(f"  Mode   : {args.mode}")
-    console.print(f"  Run ID : {run_id}")
+    console.print(f"  Goal        : {args.goal}")
+    console.print(f"  Folder      : {folder}")
+    console.print(f"  Model       : {args.model}")
+    console.print(f"  Vision model: {VISION_MODEL}")
+    console.print(f"  Mode        : {args.mode}")
+    console.print(f"  Run ID      : {run_id}")
     if args.dry_run:
         console.print(f"  [yellow]Dry run — no changes will be made[/yellow]")
     if args.safe:
