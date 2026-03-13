@@ -9,7 +9,6 @@ from pathlib import Path
 
 # ── Model ──────────────────────────────────────────────────────────────────────
 DEFAULT_MODEL = "qwen2.5-coder:14b"
-DEFAULT_FOLDER = "~/Downloads"
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"

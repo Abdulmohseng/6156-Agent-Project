@@ -22,7 +22,7 @@ from pathlib import Path
 import requests
 from rich.console import Console
 
-from config import DEFAULT_MODEL, DEFAULT_FOLDER, OLLAMA_BASE_URL
+from config import DEFAULT_MODEL, OLLAMA_BASE_URL
 from config_vision import VISION_MODEL, VISION_TEST_FOLDER
 
 console = Console()
@@ -156,8 +156,8 @@ def main():
         epilog=__doc__,
     )
     parser.add_argument("goal", help="Natural language instruction for organizing files")
-    parser.add_argument("--folder", default=DEFAULT_FOLDER,
-                        help=f"Target folder to organize (default: {DEFAULT_FOLDER})")
+    parser.add_argument("--folder", default=None,
+                        help="Target folder to organize (default: uses --test-run with folder-vision)")
     parser.add_argument("--safe", action="store_true",
                         help="Confirm each destructive step individually before executing")
     parser.add_argument("--dry-run", action="store_true",
@@ -186,6 +186,11 @@ def main():
 
     # Generate a run ID from timestamp — shared by the manifest and test-run folder name
     run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    # No --folder specified: default to --test-run with folder-vision
+    if args.folder is None:
+        args.test_run = True
+        args.test_folder = VISION_TEST_FOLDER
 
     # --test-run: override --folder with a fresh copy of the chosen built-in sample folder
     if args.test_run:
