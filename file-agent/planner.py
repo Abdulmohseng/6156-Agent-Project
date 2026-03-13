@@ -6,6 +6,14 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from state import AgentState
 from tools import list_files
 from utils.logger import log_info, log_warning
+from config import (
+    PLANNER_NUM_PREDICT,
+    TEXT_EXTENSIONS,
+    AMBIGUOUS_STEMS,
+    AMBIGUOUS_MAX_STEM_LEN,
+    CONTENT_PREVIEW_MAX_CHARS,
+    CONTENT_PREVIEW_MAX_BYTES,
+)
 
 SYSTEM_PROMPT = """/no_think
 You are a file organization planner. You will receive:
@@ -100,21 +108,21 @@ def planner_node(state: AgentState) -> dict:
 
     # Build file summary. For small text files with ambiguous names, include a
     # content preview so the planner can classify and rename without extra read steps.
-    TEXT_EXTS = {".txt", ".md", ".csv", ".json", ".log", ".yaml", ".yml"}
-    AMBIGUOUS_STEMS = {"doc", "file", "untitled", "temp", "misc", "stuff",
-                       "notes", "random", "old", "thing", "new", "data"}
-
     file_summary_lines = []
     for f in files:
         size_kb = round(f["size_bytes"] / 1024, 1)
         stem = f["name"].rstrip("0123456789_- ").lower().split(".")[0]
-        is_ambiguous = any(stem.startswith(a) for a in AMBIGUOUS_STEMS) or len(stem) <= 6
+        is_ambiguous = (
+            any(stem.startswith(a) for a in AMBIGUOUS_STEMS)
+            or len(stem) <= AMBIGUOUS_MAX_STEM_LEN
+        )
 
-        if f["extension"] in TEXT_EXTS and is_ambiguous and f["size_bytes"] < 8192:
-            # Include a short content preview inline
+        if (f["extension"] in TEXT_EXTENSIONS
+                and is_ambiguous
+                and f["size_bytes"] < CONTENT_PREVIEW_MAX_BYTES):
             from tools import read_file as _read_file
-            result = _read_file.invoke({"path": f["full_path"], "max_chars": 400})
-            preview = result.get("content", "").strip().replace("\n", " ↵ ")[:400]
+            result = _read_file.invoke({"path": f["full_path"], "max_chars": CONTENT_PREVIEW_MAX_CHARS})
+            preview = result.get("content", "").strip().replace("\n", " ↵ ")[:CONTENT_PREVIEW_MAX_CHARS]
             file_summary_lines.append(
                 f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)\n"
                 f"    CONTENT PREVIEW: {preview}"
@@ -130,7 +138,7 @@ def planner_node(state: AgentState) -> dict:
         f"Files in folder ({len(files)} total):\n{file_summary}"
     )
 
-    llm = ChatOllama(model=model, temperature=0, num_predict=8192)
+    llm = ChatOllama(model=model, temperature=0, num_predict=PLANNER_NUM_PREDICT)
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=user_content),
@@ -160,4 +168,5 @@ def planner_node(state: AgentState) -> dict:
         "decision": None,
         "done": False,
         "stats": stats,
+        "retry_counts": {},
     }

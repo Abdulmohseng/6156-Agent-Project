@@ -4,6 +4,9 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from state import AgentState
 from utils.logger import log_info, log_warning
+from config import (
+    REFLECTOR_NUM_PREDICT, MAX_RETRIES_PER_STEP, MAX_REPLANS, SKIP_ERROR_PATTERNS,
+)
 
 SYSTEM_PROMPT = """/no_think
 You are a file organization agent error handler.
@@ -30,6 +33,8 @@ def _parse_decision(raw: str) -> str:
     return "skip"  # safe default
 
 
+
+
 def reflector_node(state: AgentState) -> dict:
     """
     Reflector node: called only when a step fails.
@@ -42,6 +47,21 @@ def reflector_node(state: AgentState) -> dict:
     last_error = state.get("last_error", "Unknown error")
     model = state.get("model", "qwen3:8b")
     stats = dict(state.get("stats", {}))
+    retry_counts = dict(state.get("retry_counts", {}))
+
+    # Deterministic override: errors that retrying can never fix
+    error_lower = last_error.lower()
+    if any(pat in error_lower for pat in SKIP_ERROR_PATTERNS):
+        log_info(f"[REFLECTOR] Auto-skip (unretryable error): {last_error[:80]}")
+        return {"decision": "skip", "stats": stats, "retry_counts": retry_counts}
+
+    # Per-step retry cap: force skip if retried too many times
+    step_key = str(current_step)
+    retries = retry_counts.get(step_key, 0)
+    if retries >= MAX_RETRIES_PER_STEP:
+        log_warning(f"[REFLECTOR] Step {current_step + 1} exceeded retry limit — forcing skip.")
+        retry_counts[step_key] = 0
+        return {"decision": "skip", "stats": stats, "retry_counts": retry_counts}
 
     failed_step = plan[current_step] if current_step < len(plan) else {}
     completed_count = len([r for r in step_results if r.get("success")])
@@ -63,7 +83,7 @@ def reflector_node(state: AgentState) -> dict:
 
     log_info(f"[REFLECTOR] Analyzing failure: {last_error[:80]}...")
 
-    llm = ChatOllama(model=model, temperature=0, num_predict=50)
+    llm = ChatOllama(model=model, temperature=0, num_predict=REFLECTOR_NUM_PREDICT)
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=user_content),
@@ -76,8 +96,12 @@ def reflector_node(state: AgentState) -> dict:
 
     if decision == "replan":
         stats["replans"] = stats.get("replans", 0) + 1
+    elif decision == "retry":
+        retry_counts[step_key] = retries + 1
+    else:
+        retry_counts[step_key] = 0  # reset on skip
 
-    return {"decision": decision, "stats": stats}
+    return {"decision": decision, "stats": stats, "retry_counts": retry_counts}
 
 
 def route_after_reflect(state: AgentState) -> str:
@@ -91,7 +115,7 @@ def route_after_reflect(state: AgentState) -> str:
     replans = state.get("stats", {}).get("replans", 0)
 
     # Guard: prevent infinite replan loops
-    if decision == "replan" and replans > 3:
+    if decision == "replan" and replans > MAX_REPLANS:
         log_warning("[REFLECTOR] Too many replans — forcing skip.")
         decision = "skip"
 

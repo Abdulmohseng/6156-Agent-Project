@@ -1,13 +1,15 @@
 from .confirm import show_plan_and_confirm, confirm_step, is_destructive
 from .logger import (
-    init_stats, finalize_stats, save_log,
+    init_stats, finalize_stats,
     log_step_success, log_step_failure, log_step_skipped,
     log_info, log_warning, log_error, print_summary,
 )
+from .manifest import build_manifest, save_manifest
 
 __all__ = [
     "show_plan_and_confirm", "confirm_step", "is_destructive",
-    "init_stats", "finalize_stats", "save_log",
+    "init_stats", "finalize_stats",
     "log_step_success", "log_step_failure", "log_step_skipped",
     "log_info", "log_warning", "log_error", "print_summary",
+    "build_manifest", "save_manifest",
 ]

@@ -1,19 +1,16 @@
-import json
-import os
 import time
 from datetime import datetime
-from pathlib import Path
 
 from rich.console import Console
 
-console = Console()
+from config import RUNS_DIR
 
-LOG_DIR = Path.home() / ".file-agent" / "logs"
+console = Console()
 
 
 def init_stats(goal: str, model: str) -> dict:
     return {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
         "goal": goal,
         "model": model,
         "plan_steps": 0,
@@ -32,15 +29,6 @@ def init_stats(goal: str, model: str) -> dict:
 def finalize_stats(stats: dict) -> dict:
     stats["duration_seconds"] = round(time.time() - stats.pop("start_time", time.time()), 2)
     return stats
-
-
-def save_log(stats: dict) -> str:
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    log_path = LOG_DIR / f"{ts}.json"
-    with open(log_path, "w") as f:
-        json.dump(stats, f, indent=2)
-    return str(log_path)
 
 
 def log_step_success(step: dict, result: dict, verbose: bool = False):
@@ -73,20 +61,20 @@ def log_error(msg: str):
     console.print(f"[red]{msg}[/red]")
 
 
-def print_summary(stats: dict, log_path: str = None):
+def print_summary(stats: dict, manifest_path: str = None):
     console.print()
     console.print("[bold cyan]─── Summary ───────────────────────────────────[/bold cyan]")
     console.print(f"  Steps completed : [green]{stats['steps_completed']}[/green]")
-    if stats["steps_failed"]:
+    if stats.get("steps_failed"):
         console.print(f"  Steps failed    : [red]{stats['steps_failed']}[/red]")
-    if stats["steps_skipped"]:
+    if stats.get("steps_skipped"):
         console.print(f"  Steps skipped   : [yellow]{stats['steps_skipped']}[/yellow]")
-    if stats["replans"]:
+    if stats.get("replans"):
         console.print(f"  Replans         : {stats['replans']}")
-    console.print(f"  Files moved     : {stats['files_moved']}")
-    console.print(f"  Folders created : {stats['folders_created']}")
-    console.print(f"  Files renamed   : {stats['files_renamed']}")
-    console.print(f"  Duration        : {stats['duration_seconds']}s")
-    if log_path:
-        console.print(f"  Log saved to    : [dim]{log_path}[/dim]")
+    console.print(f"  Files moved     : {stats.get('files_moved', 0)}")
+    console.print(f"  Folders created : {stats.get('folders_created', 0)}")
+    console.print(f"  Files renamed   : {stats.get('files_renamed', 0)}")
+    console.print(f"  Duration        : {stats.get('duration_seconds', 0.0)}s")
+    if manifest_path:
+        console.print(f"  Manifest        : [dim]{manifest_path}[/dim]")
     console.print("[bold cyan]────────────────────────────────────────────────[/bold cyan]")

@@ -18,3 +18,4 @@ class AgentState(TypedDict):
     model: str                       # Ollama model name
     messages: List[dict]             # Message history for executor LLM calls
     stats: dict                      # Runtime statistics for logging
+    retry_counts: dict               # {step_index: retry_count} — per-step retry tracking
