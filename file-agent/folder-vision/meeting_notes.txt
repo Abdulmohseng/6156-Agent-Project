@@ -1,0 +1,8 @@
+Q1 Planning Meeting — March 5, 2026
+Attendees: Sarah, Marcus, Priya, James
+
+Action items:
+- Marcus: finalize API docs by Mar 15
+- Priya: review PR #204 before EOW
+- Sarah: schedule customer interviews (3 sessions)
+Next sync: March 19
