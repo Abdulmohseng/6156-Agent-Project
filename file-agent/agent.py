@@ -195,11 +195,11 @@ def main():
     # --test-run: override --folder with a fresh copy of the chosen built-in sample folder
     if args.test_run:
         here = Path(__file__).parent
-        source_folder = here / args.test_folder
+        source_folder = here.parent / "tests" / "data" / args.test_folder
         if not source_folder.exists():
-            console.print(f"[red]Error: Sample folder not found at file-agent/{args.test_folder}/[/red]")
+            console.print(f"[red]Error: Sample folder not found at tests/data/{args.test_folder}/[/red]")
             sys.exit(1)
-        dest_folder = here / "test-output" / f"run_{run_id}"
+        dest_folder = here.parent / "tests" / "output" / f"run_{run_id}"
         shutil.copytree(str(source_folder), str(dest_folder))
         console.print(f"[dim]Test copy created: {dest_folder}[/dim]")
         args.folder = str(dest_folder)
