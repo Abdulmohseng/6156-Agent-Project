@@ -1,0 +1,12 @@
+# Agent dependencies
+langgraph
+langchain-ollama
+langchain-core
+pdfplumber
+python-docx
+
+# Setup pipeline + shared utilities
+rich
+requests
+psutil
+questionary

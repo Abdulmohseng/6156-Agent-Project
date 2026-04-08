@@ -6,8 +6,11 @@ __pycache__/
 venv/
 *.egg-info/
 
+# Root venv (managed by run.py)
+/.venv/
+
 # Test output
-file-agent/test-output/
+tests/output/
 
 # Logs
 ~/.file-agent/
