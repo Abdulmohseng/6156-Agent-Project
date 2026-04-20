@@ -33,6 +33,7 @@ Available tools:
 - rename_file(path, new_name): Rename a file
 
 Rules:
+- CRITICAL: Every single file in the listing MUST have a move_file step. Never skip any file.
 - Always create a destination folder before moving files into it
 - Never move files to a folder that hasn't been created yet
 - Use full absolute paths in all args (no ~)
@@ -51,6 +52,7 @@ Rules:
 - After renaming a file, all subsequent steps that reference that file MUST use the new path
 - Group files into meaningful semantic folders (Finance, Health, Work, Travel,
   Personal, Nature, Animals, Food, Education, etc.) — not by extension
+- Images (.jpg, .jpeg, .png, etc.) MUST be organized just like any other file — do not skip them
 
 Output ONLY valid JSON, no explanation, no markdown fences, no extra text.
 
@@ -323,6 +325,88 @@ def _inject_image_renames(
     return new_plan
 
 
+def _append_uncovered_files(
+    plan: list[dict],
+    files: list[dict],
+    image_descriptions: dict[str, str],
+    folder: str,
+    llm,
+) -> list[dict]:
+    """
+    Find any files that have no move_file step in the plan and append steps for them.
+
+    Coverage logic: a file is considered covered if its original name appears as the
+    source of a rename_file step (which always precedes its move), OR directly as the
+    src of a move_file step (for files that aren't renamed).
+    """
+    renamed_originals = {
+        Path(s["args"].get("path", "")).name
+        for s in plan if s.get("tool") == "rename_file"
+    }
+    moved_srcs = {
+        Path(s["args"].get("src", "")).name
+        for s in plan if s.get("tool") == "move_file"
+    }
+    covered = renamed_originals | moved_srcs
+
+    uncovered = [f for f in files if f["name"] not in covered]
+    if not uncovered:
+        return plan
+
+    log_warning(f"[PLANNER] {len(uncovered)} file(s) not covered by plan — generating steps...")
+
+    existing_folders = sorted({
+        Path(s["args"]["path"]).name
+        for s in plan if s.get("tool") == "create_folder"
+    })
+
+    uncovered_desc_lines = []
+    for f in uncovered:
+        size_kb = round(f["size_bytes"] / 1024, 1)
+        line = f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)"
+        if f["name"] in image_descriptions:
+            desc = image_descriptions[f["name"]]
+            if not desc.startswith("[vision error"):
+                line += f"\n    IMAGE DESCRIPTION: {desc}"
+        uncovered_desc_lines.append(line)
+
+    fix_prompt = (
+        f"/no_think\n"
+        f"These files were NOT included in the organization plan. "
+        f"Generate JSON steps to organize ALL of them.\n\n"
+        f"Target folder: {folder}\n"
+        f"Folders already created in the plan: {', '.join(existing_folders) if existing_folders else 'none'}\n\n"
+        f"Files to organize:\n" + "\n".join(uncovered_desc_lines) + "\n\n"
+        f"Rules:\n"
+        f"- Use full absolute paths\n"
+        f"- create_folder first if the destination doesn't exist yet\n"
+        f"- If the filename is generic (e.g. img001.jpg, doc1.txt), rename it first "
+        f"(rename_file), then move with the NEW path\n"
+        f"- Group into meaningful folders (Nature, Animals, Food, Travel, etc.)\n\n"
+        f"Output ONLY a JSON array of steps (no wrapper object):\n"
+        f'[{{"step": 0, "description": "...", "tool": "...", "args": {{...}}}}]'
+    )
+
+    try:
+        response = llm.invoke([HumanMessage(content=fix_prompt)])
+        raw = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw).strip()
+        new_steps = json.loads(raw)
+
+        if isinstance(new_steps, list) and new_steps:
+            plan = list(plan) + new_steps
+            for i, step in enumerate(plan):
+                plan[i] = {**step, "step": i + 1}
+            log_info(f"[PLANNER] Appended {len(new_steps)} step(s) for {len(uncovered)} uncovered file(s).")
+        else:
+            log_warning("[PLANNER] Coverage fix returned no steps.")
+    except Exception as e:
+        log_warning(f"[PLANNER] Could not generate steps for uncovered files: {e}")
+
+    return plan
+
+
 def planner_node(state: AgentState) -> dict:
     """
     Planner node: lists files in the target folder, then calls the LLM to generate
@@ -368,17 +452,27 @@ def planner_node(state: AgentState) -> dict:
                 f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)\n"
                 f"    CONTENT PREVIEW: {preview}"
             )
-        elif f["extension"] in IMAGE_EXTENSIONS and is_ambiguous:
-            # Ambiguous image file — describe via vision model so planner can classify
+        elif f["extension"] in IMAGE_EXTENSIONS:
+            # Image file — always register so the coverage check can handle missed images.
+            # Only call the vision model when the name is ambiguous (needs description for rename).
             from tools import read_file as _read_file
-            log_info(f"[PLANNER] Describing image via {VISION_MODEL}: {f['name']}")
-            result = _read_file.invoke({"path": f["full_path"], "max_chars": CONTENT_PREVIEW_MAX_CHARS})
-            preview = result.get("content", "").strip().replace("\n", " ")[:CONTENT_PREVIEW_MAX_CHARS]
-            image_descriptions[f["name"]] = preview  # store for rename injection
-            file_summary_lines.append(
-                f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)\n"
-                f"    IMAGE DESCRIPTION: {preview}"
-            )
+            if is_ambiguous:
+                log_info(f"[PLANNER] Describing image via {VISION_MODEL}: {f['name']}")
+                result = _read_file.invoke({"path": f["full_path"], "max_chars": CONTENT_PREVIEW_MAX_CHARS})
+                preview = result.get("content", "").strip().replace("\n", " ")[:CONTENT_PREVIEW_MAX_CHARS]
+                if preview.startswith("[vision error"):
+                    log_warning(f"[PLANNER] Vision model unavailable for {f['name']} — image will be moved without description")
+                    preview = ""
+            else:
+                preview = ""
+            image_descriptions[f["name"]] = preview  # always track images
+            if preview:
+                file_summary_lines.append(
+                    f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)\n"
+                    f"    IMAGE DESCRIPTION: {preview}"
+                )
+            else:
+                file_summary_lines.append(f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)")
         else:
             file_summary_lines.append(f"  {f['name']} ({f['extension'] or 'no ext'}, {size_kb}KB)")
 
@@ -418,6 +512,10 @@ def planner_node(state: AgentState) -> dict:
     # ── Programmatically inject rename steps for generic-named images ──────────
     if image_descriptions:
         plan = _inject_image_renames(plan, image_descriptions, folder, llm)
+
+    # ── Safety net: append steps for any files the LLM missed entirely ─────────
+    if plan and files:
+        plan = _append_uncovered_files(plan, files, image_descriptions, folder, llm)
 
     log_info(f"[PLANNER] Generated {len(plan)}-step plan.")
 

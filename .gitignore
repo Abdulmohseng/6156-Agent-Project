@@ -12,6 +12,9 @@ venv/
 # Test output
 tests/output/
 
+# Agent run output (organized copies — never commit run results)
+data/output/run_*/
+
 # Logs
 ~/.file-agent/
 
