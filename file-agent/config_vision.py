@@ -10,7 +10,7 @@ behaviour. Does not override or depend on config.py.
 VISION_MODEL = "qwen3-vl:8b"           # Ollama model used for all image reads
 
 # ── Vision test folder ─────────────────────────────────────────────────────────
-VISION_TEST_FOLDER = "folder-vision"   # built-in sample folder with mixed images + text
+VISION_TEST_FOLDER = "sample"          # built-in sample folder with mixed file types
 
 # ── Image prompt ──────────────────────────────────────────────────────────────
 # Sent to the vision model alongside the image. Keep it concise — the model

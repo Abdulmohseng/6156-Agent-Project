@@ -115,10 +115,11 @@ def _ask_folder() -> str:
 
     home = Path.home()
     common = [
-        ("Downloads",  home / "Downloads"),
-        ("Desktop",    home / "Desktop"),
-        ("Documents",  home / "Documents"),
-        ("Home",       home),
+        ("Test Sample", ROOT / "tests" / "data" / "sample"),
+        ("Downloads",   home / "Downloads"),
+        ("Desktop",     home / "Desktop"),
+        ("Documents",   home / "Documents"),
+        ("Home",        home),
     ]
     # Only show locations that actually exist
     common_choices = [
@@ -300,7 +301,7 @@ if __name__ == "__main__":
 
     # ── Folder ─────────────────────────────────────────────────────────────────
     if args.test:
-        folder = str(ROOT / "tests" / "data" / "folder-vision")
+        folder = str(ROOT / "tests" / "data" / "sample")
         from rich.console import Console
         Console().print(f"[dim]Using test folder:[/dim] {folder}\n")
     else:
