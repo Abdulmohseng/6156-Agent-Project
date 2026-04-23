@@ -13,6 +13,7 @@ DEFAULT_MODEL = "qwen2.5-coder:14b"
 # ── Paths ──────────────────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
 RUNS_DIR = Path.home() / ".file-agent" / "runs"
+TEST_FOLDER = "model_test"
 
 # ── Planner ────────────────────────────────────────────────────────────────────
 PLANNER_NUM_PREDICT = 8192

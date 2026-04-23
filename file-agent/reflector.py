@@ -83,7 +83,7 @@ def reflector_node(state: AgentState) -> dict:
 
     log_info(f"[REFLECTOR] Analyzing failure: {last_error[:80]}...")
 
-    llm = ChatOllama(model=model, temperature=0, num_predict=REFLECTOR_NUM_PREDICT)
+    llm = ChatOllama(model=model, temperature=0, num_predict=REFLECTOR_NUM_PREDICT, think=False)
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=user_content),

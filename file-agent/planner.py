@@ -15,7 +15,8 @@ from config import (
     CONTENT_PREVIEW_MAX_CHARS,
     CONTENT_PREVIEW_MAX_BYTES,
 )
-from config_vision import IMAGE_EXTENSIONS, VISION_MODEL
+from config_vision import IMAGE_EXTENSIONS
+import config_vision
 
 SYSTEM_PROMPT = """/no_think
 You are a file organization planner. You will receive:
@@ -97,7 +98,60 @@ def _parse_plan(raw: str) -> list[dict] | None:
                 return data.get("steps", [])
             except json.JSONDecodeError:
                 pass
+
+    # Partial recovery: walk the steps array object-by-object using brace depth,
+    # stopping at the first invalid/corrupt entry. Handles nested args dicts.
+    steps = _extract_steps_partial(raw)
+    if steps:
+        log_warning(f"[PLANNER] Partial recovery: salvaged {len(steps)} valid step(s) from malformed output.")
+        return steps
+
     return None
+
+
+_VALID_TOOLS = {"list_files", "read_file", "create_folder", "move_file", "rename_file"}
+
+
+def _extract_steps_partial(raw: str) -> list[dict]:
+    """Walk a potentially-truncated/corrupt steps array and return only valid entries."""
+    m = re.search(r'"steps"\s*:\s*\[', raw)
+    if not m:
+        return []
+
+    steps = []
+    i = m.end()
+
+    while i < len(raw):
+        while i < len(raw) and raw[i] in ' \t\n\r,':
+            i += 1
+        if i >= len(raw) or raw[i] != '{':
+            break
+
+        depth, j = 0, i
+        while j < len(raw):
+            if raw[j] == '{':
+                depth += 1
+            elif raw[j] == '}':
+                depth -= 1
+                if depth == 0:
+                    j += 1
+                    break
+            j += 1
+
+        try:
+            step = json.loads(raw[i:j])
+            if (isinstance(step.get("step"), int)
+                    and step.get("tool") in _VALID_TOOLS
+                    and isinstance(step.get("args"), dict)):
+                steps.append(step)
+            else:
+                break
+        except json.JSONDecodeError:
+            break
+
+        i = j
+
+    return steps
 
 
 def _simulate_plan(plan: list[dict], files: list[dict]) -> list[tuple]:
@@ -457,7 +511,7 @@ def planner_node(state: AgentState) -> dict:
             # Only call the vision model when the name is ambiguous (needs description for rename).
             from tools import read_file as _read_file
             if is_ambiguous:
-                log_info(f"[PLANNER] Describing image via {VISION_MODEL}: {f['name']}")
+                log_info(f"[PLANNER] Describing image via {config_vision.VISION_MODEL}: {f['name']}")
                 result = _read_file.invoke({"path": f["full_path"], "max_chars": CONTENT_PREVIEW_MAX_CHARS})
                 preview = result.get("content", "").strip().replace("\n", " ")[:CONTENT_PREVIEW_MAX_CHARS]
                 if preview.startswith("[vision error"):
@@ -484,19 +538,27 @@ def planner_node(state: AgentState) -> dict:
         f"Files in folder ({len(files)} total):\n{file_summary}"
     )
 
-    llm = ChatOllama(model=model, temperature=0, num_predict=PLANNER_NUM_PREDICT)
+    llm = ChatOllama(model=model, temperature=0, num_predict=PLANNER_NUM_PREDICT, think=False)
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=user_content),
     ]
 
     response = llm.invoke(messages)
-    raw_output = response.content
+    raw_output = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
 
     plan = _parse_plan(raw_output)
 
     if plan is None:
-        log_warning("[PLANNER] Failed to parse plan JSON. Raw output:")
+        log_warning("[PLANNER] Failed to parse plan JSON. Raw output (first 1000 chars):")
+        log_warning(raw_output[:1000])
+        log_warning("[PLANNER] Retrying once...")
+        response = llm.invoke(messages)
+        raw_output = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
+        plan = _parse_plan(raw_output)
+
+    if plan is None:
+        log_warning("[PLANNER] Failed to parse plan JSON after retry. Raw output:")
         log_warning(raw_output[:2000])
         plan = []
 

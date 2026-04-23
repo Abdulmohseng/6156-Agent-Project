@@ -15,6 +15,7 @@ AGENT_DIR    = ROOT / "file-agent"
 SETUP_DIR    = ROOT / "setup"
 REQUIREMENTS = ROOT / "requirements.txt"
 RECENTS_FILE = Path.home() / ".file-agent" / "recents.json"
+DEFAULT_MODEL = "qwen2.5-coder:14b"  # mirrors file-agent/config.py
 
 VENV_PYTHON = VENV / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 
@@ -115,7 +116,7 @@ def _ask_folder() -> str:
 
     home = Path.home()
     common = [
-        ("Test Sample", ROOT / "tests" / "data" / "sample"),
+        ("Test Sample", ROOT / "tests" / "data" / "model_test"),
         ("Downloads",   home / "Downloads"),
         ("Desktop",     home / "Desktop"),
         ("Documents",   home / "Documents"),
@@ -172,19 +173,14 @@ def _ask_goal() -> str:
     goal = questionary.text(
         "What would you like to do with the files?",
         instruction="e.g. Organize by type, Sort by date, Group photos by location",
+        default="Organize by type",
         style=QS_STYLE,
     ).ask()
 
     if goal is None:
         sys.exit(0)
 
-    goal = goal.strip()
-    if not goal:
-        from rich.console import Console
-        Console().print("[red]Goal cannot be empty.[/red]")
-        sys.exit(1)
-
-    return goal
+    return goal.strip()
 
 
 def _ask_options(presets: list[str]) -> list[str]:
@@ -222,11 +218,54 @@ def _ask_options(presets: list[str]) -> list[str]:
     return selected if selected is not None else []
 
 
+DEFAULT_VISION_MODEL = "qwen3-vl:8b"  # mirrors config_vision.py
+
+
+def _ask_vision_model(preset: str | None) -> str | None:
+    """Return vision model name from CLI preset or interactive pick. None = use config default."""
+    import questionary
+    import requests
+    from rich.console import Console
+
+    if preset:
+        return preset
+
+    try:
+        r = requests.get("http://localhost:11434/api/tags", timeout=3)
+        models = [m["name"] for m in r.json().get("models", [])]
+    except Exception:
+        models = []
+
+    if not models:
+        Console().print(f"[dim]Could not reach Ollama — using default vision model ({DEFAULT_VISION_MODEL})[/dim]")
+        return None
+
+    default_choice = next((m for m in models if m == DEFAULT_VISION_MODEL), models[0])
+    choices = [
+        questionary.Choice(f"{m}  (default)" if m == DEFAULT_VISION_MODEL else m, value=m)
+        for m in models
+    ]
+    default_qchoice = next(c for c in choices if c.value == default_choice)
+
+    answer = questionary.select(
+        "Which model for image descriptions?",
+        choices=choices,
+        default=default_qchoice,
+        style=QS_STYLE,
+        use_shortcuts=False,
+    ).ask()
+
+    if answer is None:
+        sys.exit(0)
+    return answer
+
+
 # ── Agent runner ───────────────────────────────────────────────────────────────
 
-def _run_agent(goal: str, folder: str, flags: list[str]) -> None:
+def _run_agent(goal: str, folder: str | None, flags: list[str]) -> None:
     sys.path.insert(0, str(AGENT_DIR))
-    sys.argv = ["agent.py", goal, "--folder", folder] + flags
+    folder_args = ["--folder", folder] if folder else ["--test-run"]
+    sys.argv = ["agent.py", goal] + folder_args + flags
     import agent
     agent.main()
 
@@ -241,20 +280,20 @@ def _parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Override flags:\n"
-            "  --reset      Re-run the setup wizard\n"
-            "  --test       Use the built-in sample folder (skips folder prompt)\n"
-            "  --model NAME Use a specific Ollama model for this run\n"
-            "  --dry-run    Force dry-run mode (no files changed)\n"
-            "  --safe       Force safe mode (confirm each step)\n"
-            "  --verbose    Force verbose output\n"
+            "  --reset              Re-run the setup wizard\n"
+            "  --test               Use the built-in model_test folder (skips folder prompt)\n"
+            "  --vision-model NAME  Override the vision model for image descriptions\n"
+            "  --dry-run            Force dry-run mode (no files changed)\n"
+            "  --safe               Force safe mode (confirm each step)\n"
+            "  --verbose            Force verbose output\n"
         ),
     )
-    p.add_argument("--reset",    action="store_true", help="Re-run the setup wizard")
-    p.add_argument("--test",     action="store_true", help="Use built-in sample folder")
-    p.add_argument("--model",    metavar="NAME",      help="Override the Ollama model")
-    p.add_argument("--dry-run",  action="store_true", help="Preview plan, no changes")
-    p.add_argument("--safe",     action="store_true", help="Confirm each step")
-    p.add_argument("--verbose",  action="store_true", help="Full tool output")
+    p.add_argument("--reset",         action="store_true", help="Re-run the setup wizard")
+    p.add_argument("--test",          action="store_true", help="Use built-in sample folder")
+    p.add_argument("--vision-model",  metavar="NAME",      help="Override the vision model")
+    p.add_argument("--dry-run",       action="store_true", help="Preview plan, no changes")
+    p.add_argument("--safe",          action="store_true", help="Confirm each step")
+    p.add_argument("--verbose",       action="store_true", help="Full tool output")
     return p.parse_args()
 
 
@@ -300,27 +339,33 @@ if __name__ == "__main__":
         _run_setup()
 
     # ── Folder ─────────────────────────────────────────────────────────────────
+    TEST_FOLDER_PATH = str(ROOT / "tests" / "data" / "model_test")
     if args.test:
-        folder = str(ROOT / "tests" / "data" / "sample")
+        folder = None  # agent.py --test-run will copy model_test → data/output/
         from rich.console import Console
-        Console().print(f"[dim]Using test folder:[/dim] {folder}\n")
+        Console().print(f"[dim]Test run — copy will be created in data/output/[/dim]\n")
     else:
         folder = _ask_folder()
+        if folder == TEST_FOLDER_PATH:
+            folder = None  # same protection when selected via picker
 
     # ── Goal ───────────────────────────────────────────────────────────────────
     goal = _ask_goal()
+
+    # ── Vision model ───────────────────────────────────────────────────────────
+    chosen_vision_model = _ask_vision_model(args.vision_model)
 
     # ── Options ────────────────────────────────────────────────────────────────
     preset_flags: list[str] = []
     if args.dry_run: preset_flags.append("--dry-run")
     if args.safe:    preset_flags.append("--safe")
     if args.verbose: preset_flags.append("--verbose")
-    if args.model:   preset_flags += ["--model", args.model]
 
     flags = _ask_options(preset_flags)
-    if args.model and "--model" not in flags:
-        flags += ["--model", args.model]
+    if chosen_vision_model:
+        flags += ["--vision-model", chosen_vision_model]
 
     # ── Run ────────────────────────────────────────────────────────────────────
-    _save_recent(folder)
+    if folder:
+        _save_recent(folder)
     _run_agent(goal, folder, flags)

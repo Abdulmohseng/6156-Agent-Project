@@ -22,8 +22,8 @@ from pathlib import Path
 import requests
 from rich.console import Console
 
-from config import DEFAULT_MODEL, OLLAMA_BASE_URL
-from config_vision import VISION_MODEL, VISION_TEST_FOLDER
+from config import DEFAULT_MODEL, OLLAMA_BASE_URL, TEST_FOLDER
+import config_vision
 
 console = Console()
 
@@ -138,7 +138,7 @@ def _run_direct(args, folder: str):
         for f in files
     )
 
-    llm = ChatOllama(model=args.model, temperature=0)
+    llm = ChatOllama(model=args.model, temperature=0, think=False)
     response = llm.invoke([
         SystemMessage(content=(
             "You are a file organization assistant. Describe exactly what actions "
@@ -169,6 +169,8 @@ def main():
                         help="Agent mode (default: plan-and-act)")
     parser.add_argument("--model", default=DEFAULT_MODEL,
                         help=f"Ollama model name (default: {DEFAULT_MODEL})")
+    parser.add_argument("--vision-model", default=None,
+                        help="Ollama model for image descriptions (default: config_vision.VISION_MODEL)")
     parser.add_argument("--test-run", action="store_true",
                         help=(
                             "Copy the built-in sample folder into data/output/run_TIMESTAMP/ "
@@ -187,9 +189,9 @@ def main():
     # --test-run: copy sample → data/output/run_<timestamp>/ and operate on the copy
     if args.test_run:
         here = Path(__file__).parent
-        source_folder = here.parent / "tests" / "data" / VISION_TEST_FOLDER
+        source_folder = here.parent / "tests" / "data" / TEST_FOLDER
         if not source_folder.exists():
-            console.print(f"[red]Error: Sample folder not found at tests/data/{VISION_TEST_FOLDER}/[/red]")
+            console.print(f"[red]Error: Sample folder not found at tests/data/{TEST_FOLDER}/[/red]")
             sys.exit(1)
         dest_folder = here.parent / "data" / "output" / f"run_{run_id}"
         dest_folder.mkdir(parents=True, exist_ok=True)
@@ -203,13 +205,15 @@ def main():
         console.print(f"[red]Error: Folder does not exist: {folder}[/red]")
         sys.exit(1)
 
+    if args.vision_model:
+        config_vision.VISION_MODEL = args.vision_model
     _check_ollama(args.model)
 
     console.print(f"\n[bold cyan]File Organization Agent[/bold cyan]")
     console.print(f"  Goal        : {args.goal}")
     console.print(f"  Folder      : {folder}")
     console.print(f"  Model       : {args.model}")
-    console.print(f"  Vision model: {VISION_MODEL}")
+    console.print(f"  Vision model: {config_vision.VISION_MODEL}")
     console.print(f"  Mode        : {args.mode}")
     console.print(f"  Run ID      : {run_id}")
     if args.dry_run:
