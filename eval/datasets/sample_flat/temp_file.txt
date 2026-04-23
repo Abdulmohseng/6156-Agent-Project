@@ -1,0 +1,30 @@
+PROJECT PROPOSAL: Internal Dashboard Redesign
+Submitted by: Abdul M.
+Date: March 1, 2026
+Department: Product & Engineering
+
+EXECUTIVE SUMMARY
+This proposal outlines a full redesign of the company's internal analytics dashboard,
+replacing the current fragmented tool set with a unified, real-time platform built on
+React + FastAPI + PostgreSQL.
+
+PROBLEM STATEMENT
+  - Current dashboard loads in 8–12 seconds; users report abandoning it
+  - Data is siloed across 4 different tools (Metabase, Google Sheets, Notion, Looker)
+  - No mobile support; field teams cannot access metrics on-site
+  - No role-based access control — all employees see all data
+
+PROPOSED SOLUTION
+  Phase 1 (Q2 2026): Core dashboard, real-time KPIs, role-based access
+  Phase 2 (Q3 2026): Mobile app (React Native), push notifications
+  Phase 3 (Q4 2026): Predictive analytics module, ML-based anomaly detection
+
+ESTIMATED BUDGET
+  Engineering (3 engineers × 6 months): $180,000
+  Design (1 designer × 3 months)      :  $30,000
+  Infrastructure (AWS)                 :  $12,000/yr
+  Total Year 1                         : $222,000
+
+EXPECTED ROI
+  Reduce analyst reporting time by 60% → estimated $95,000/yr saved
+  Projected break-even: 14 months

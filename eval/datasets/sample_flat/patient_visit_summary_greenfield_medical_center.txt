@@ -1,0 +1,26 @@
+PATIENT VISIT SUMMARY
+Clinic: Greenfield Medical Center
+Date: January 28, 2026
+Provider: Dr. Sarah Chen, MD — Internal Medicine
+
+Patient: Abdul M.
+DOB: 1990-05-12
+
+Chief Complaint: Seasonal allergies, persistent sneezing and congestion for 3 weeks.
+
+Vitals:
+  Blood Pressure : 118/76 mmHg
+  Heart Rate     : 72 bpm
+  Temperature    : 98.4°F
+  SpO2           : 99%
+
+Assessment:
+  Allergic rhinitis, moderate severity. Likely triggered by spring pollen.
+
+Plan:
+  - Cetirizine 10mg once daily for 30 days
+  - Nasal corticosteroid spray (Flonase) twice daily
+  - Follow-up in 6 weeks if symptoms persist
+  - Avoid outdoor activity on high pollen days
+
+Next Appointment: March 10, 2026

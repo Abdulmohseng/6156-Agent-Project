@@ -1,0 +1,23 @@
+PURCHASE RECEIPT
+Store: Apple Store — Fifth Avenue, New York
+Date: February 28, 2026
+Order #: W1234567890
+
+ITEMS PURCHASED
+  MacBook Pro 14" M4 Pro
+    16-Core CPU, 24-Core GPU, 48GB RAM, 1TB SSD
+    Space Black                              $2,499.00
+
+  AppleCare+ for MacBook Pro (3 years)         $249.00
+  USB-C to MagSafe 3 Cable (2m)                 $49.00
+
+                                  Subtotal   $2,797.00
+                                  Tax (8.875%)  $248.19
+                                  TOTAL      $3,045.19
+
+Payment: Visa ····4821
+Authorization: 881234
+
+Items eligible for return within 14 days with original receipt.
+AppleCare+ coverage begins: February 28, 2026
+Serial Number: FVFXQ2XXXXX

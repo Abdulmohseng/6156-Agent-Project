@@ -1,0 +1,3 @@
+# No new dependencies — all packages already in root requirements.txt
+# requests  (HTTP calls to Ollama)
+# rich      (terminal tables)

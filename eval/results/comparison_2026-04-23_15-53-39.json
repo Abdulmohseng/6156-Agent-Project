@@ -1,0 +1,136 @@
+{
+  "timestamp": "2026-04-23_15-53-39",
+  "results": [
+    {
+      "run_id": "2026-04-21_12-33-47",
+      "dataset": "model_test",
+      "model": "qwen2.5-coder:14b",
+      "goal": "organize by type",
+      "timestamp": "2026-04-21T12:33:48",
+      "structural": {
+        "total_files": 10,
+        "files_placed": 10,
+        "files_folder_matched": 5,
+        "coverage": 1.0,
+        "placement_accuracy": 0.5,
+        "per_file": [
+          {
+            "original_name": "file1.txt",
+            "final_name": "file1.txt",
+            "expected_folder": "invoices",
+            "actual_folder": "Finance",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file2.txt",
+            "final_name": "file2.txt",
+            "expected_folder": "personal_logs",
+            "actual_folder": "Work",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file3.txt",
+            "final_name": "file3.txt",
+            "expected_folder": "health",
+            "actual_folder": "Health",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file4.pdf",
+            "final_name": "file4.pdf",
+            "expected_folder": "invoices",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file5.pdf",
+            "final_name": "file5.pdf",
+            "expected_folder": "health",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file6.jpg",
+            "final_name": "smartphone_personal.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Personal",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file7.jpg",
+            "final_name": "coffee_latte_art.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Food",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file8.jpg",
+            "final_name": "forest_water_landscape.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Nature",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file9.csv",
+            "final_name": "file9.csv",
+            "expected_folder": "datasets",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file10.csv",
+            "final_name": "file10.csv",
+            "expected_folder": "datasets",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": true
+          }
+        ]
+      },
+      "judge": {
+        "score": 4,
+        "reasoning": "The agent's output has significant misclassifications and missed files, leading to a below-average organization.",
+        "strengths": [
+          "All files were moved out of the root directory"
+        ],
+        "weaknesses": [
+          "Incorrect categorization of many files",
+          "Missing some expected folders like 'datasets' and 'personal_logs'"
+        ],
+        "folder_quality": "fair",
+        "naming_quality": "poor",
+        "coverage_assessment": "100% of files were handled, but only half were placed correctly.",
+        "judge_model": "qwen2.5-coder:14b"
+      },
+      "agent_summary": {
+        "plan_steps": 20,
+        "steps_completed": 20,
+        "steps_failed": 0,
+        "steps_skipped": 0,
+        "replans": 0,
+        "files_moved": 10,
+        "folders_created": 7,
+        "files_renamed": 3,
+        "duration_seconds": 150.39
+      }
+    }
+  ],
+  "aggregate": {
+    "qwen2.5-coder:14b": {
+      "num_runs": 1,
+      "avg_coverage": 1.0,
+      "avg_placement_accuracy": 0.5,
+      "avg_judge_score": 4.0,
+      "avg_duration_seconds": 150.4
+    }
+  }
+}
