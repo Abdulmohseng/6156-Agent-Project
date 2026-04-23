@@ -1,0 +1,30 @@
+STUDY NOTES — Machine Learning Fundamentals
+Course: CS 6780 — Advanced Machine Learning
+Lecture 7: Gradient Descent & Optimization
+
+KEY CONCEPTS
+
+Gradient Descent
+  - Update rule: θ = θ - α * ∇L(θ)
+  - α (learning rate): too high = diverges, too low = slow convergence
+  - Variants: Batch GD, Stochastic GD (SGD), Mini-batch GD
+
+Optimizers to Know for Exam:
+  - SGD with Momentum: adds velocity term, escapes shallow local minima
+  - AdaGrad: adapts learning rate per parameter (good for sparse data)
+  - RMSProp: fixes AdaGrad's diminishing LR problem
+  - Adam: combines momentum + RMSProp. Formula:
+      m_t = β1*m_{t-1} + (1-β1)*g_t
+      v_t = β2*v_{t-1} + (1-β2)*g_t²
+      θ = θ - α * m̂_t / (√v̂_t + ε)
+  - Default β1=0.9, β2=0.999, ε=1e-8
+
+Vanishing Gradient Problem
+  - Occurs in deep networks with sigmoid/tanh activations
+  - Gradients shrink exponentially through layers
+  - Solutions: ReLU, batch normalization, residual connections (ResNet)
+
+TODO before midterm:
+  [ ] Re-read Section 4.3 on convex vs non-convex loss surfaces
+  [ ] Implement Adam from scratch in NumPy
+  [ ] Review backpropagation derivation

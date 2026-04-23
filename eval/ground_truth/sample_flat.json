@@ -1,0 +1,151 @@
+{
+  "dataset": "sample_flat",
+  "description": "24 files flattened from tests/data/sample/ — mixed types, generic and descriptive names",
+  "version": "1.0",
+  "files": {
+    "invoice_acme_feb2026.pdf": {
+      "expected_folder": "Finance",
+      "expected_name": null,
+      "folder_aliases": ["finance", "invoices", "Invoices", "Bills", "billing"],
+      "content_hint": "Invoice PDF from Acme Corp, February 2026"
+    },
+    "gym_log_mar2026.txt": {
+      "expected_folder": "Health",
+      "expected_name": null,
+      "folder_aliases": ["health", "Fitness", "fitness", "Gym", "gym", "Wellness", "workout"],
+      "content_hint": "Gym workout log, March 2026"
+    },
+    "patient_visit_summary_greenfield_medical_center.txt": {
+      "expected_folder": "Medical",
+      "expected_name": null,
+      "folder_aliases": ["medical", "Health", "health", "Healthcare", "medical_records"],
+      "content_hint": "Patient visit summary from Greenfield Medical Center"
+    },
+    "purchase_receipt_apple_store_fifth_avenue.txt": {
+      "expected_folder": "Personal",
+      "expected_name": null,
+      "folder_aliases": ["personal", "Shopping", "shopping", "Receipts", "receipts"],
+      "content_hint": "Purchase receipt from Apple Store Fifth Avenue"
+    },
+    "recipe_roasted_butternut_squash_soup.txt": {
+      "expected_folder": "Recipes",
+      "expected_name": null,
+      "folder_aliases": ["recipes", "Food", "food", "Cooking", "cooking", "Kitchen"],
+      "content_hint": "Recipe for roasted butternut squash soup"
+    },
+    "study_notes_machine_learning_fundamentals.txt": {
+      "expected_folder": "Study",
+      "expected_name": null,
+      "folder_aliases": ["study", "Education", "education", "Learning", "Notes", "notes", "Academic"],
+      "content_hint": "Study notes on machine learning fundamentals"
+    },
+    "flight_hotel_itinerary_tokyo_trip.txt": {
+      "expected_folder": "Travel",
+      "expected_name": null,
+      "folder_aliases": ["travel", "Trips", "trips", "Itinerary", "itinerary", "Vacation"],
+      "content_hint": "Flight and hotel itinerary for Tokyo trip"
+    },
+    "meeting_notes_sprint_planning_q2_2026.txt": {
+      "expected_folder": "Work",
+      "expected_name": null,
+      "folder_aliases": ["work", "Professional", "professional", "Business", "business", "Office"],
+      "content_hint": "Meeting notes from sprint planning session Q2 2026"
+    },
+    "project_proposal_internal_dashboard_redesign.pdf": {
+      "expected_folder": "Work",
+      "expected_name": null,
+      "folder_aliases": ["work", "Professional", "professional", "Business", "business", "Office"],
+      "content_hint": "Project proposal PDF for internal dashboard redesign"
+    },
+    "contacts.csv": {
+      "expected_folder": "Data",
+      "expected_name": null,
+      "folder_aliases": ["data", "Datasets", "datasets", "CSV", "Analytics", "analytics"],
+      "content_hint": "Contacts spreadsheet CSV"
+    },
+    "sales_report.csv": {
+      "expected_folder": "Data",
+      "expected_name": null,
+      "folder_aliases": ["data", "Datasets", "datasets", "Finance", "finance", "Analytics", "Reports"],
+      "content_hint": "Sales report CSV data"
+    },
+    "temp_file.txt": {
+      "expected_folder": "Data",
+      "expected_name": null,
+      "folder_aliases": ["data", "Misc", "misc", "Temp", "temp", "Other"],
+      "content_hint": "Temporary or miscellaneous text file from Data folder"
+    },
+    "doc1.txt": {
+      "expected_folder": "Finance",
+      "expected_name": null,
+      "folder_aliases": ["finance", "Invoices", "invoices", "Bills", "billing"],
+      "content_hint": "Invoice #INV-2026-0341 from Abdul Design Studio — generic filename"
+    },
+    "file10.txt": {
+      "expected_folder": "Personal",
+      "expected_name": null,
+      "folder_aliases": ["personal", "Books", "books", "Reading", "reading", "Logs", "Journal"],
+      "content_hint": "Book reading log 2026 — generic filename"
+    },
+    "data.csv": {
+      "expected_folder": "Data",
+      "expected_name": null,
+      "folder_aliases": ["data", "Datasets", "datasets", "Analytics", "analytics", "Science"],
+      "content_hint": "Environmental sensor readings CSV — generic filename"
+    },
+    "medical_report.pdf": {
+      "expected_folder": "Medical",
+      "expected_name": null,
+      "folder_aliases": ["medical", "Health", "health", "Healthcare", "Reports"],
+      "content_hint": "Medical report PDF — generic filename"
+    },
+    "img001.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 001"
+    },
+    "img002.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 002"
+    },
+    "img003.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 003"
+    },
+    "img004.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 004"
+    },
+    "img005.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 005"
+    },
+    "img006.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 006"
+    },
+    "img007.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 007"
+    },
+    "img008.jpg": {
+      "expected_folder": "Photos",
+      "expected_name": null,
+      "folder_aliases": ["photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Generic image file 008"
+    }
+  }
+}

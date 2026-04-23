@@ -1,0 +1,67 @@
+{
+  "dataset": "model_test",
+  "description": "10 files covering invoices, personal logs, health, photos, and datasets",
+  "version": "1.0",
+  "files": {
+    "file1.txt": {
+      "expected_folder": "invoices",
+      "expected_name": null,
+      "folder_aliases": ["Finance", "finance", "Invoices", "Bills", "billing"],
+      "content_hint": "Invoice #INV-2026-0341 from Abdul Design Studio to Acme Corp for $2,700"
+    },
+    "file2.txt": {
+      "expected_folder": "personal_logs",
+      "expected_name": null,
+      "folder_aliases": ["Personal", "personal", "Logs", "Journal", "Reading", "Books", "diary"],
+      "content_hint": "Book reading log for 2026, tracking 24 books goal with ratings and notes"
+    },
+    "file3.txt": {
+      "expected_folder": "health",
+      "expected_name": null,
+      "folder_aliases": ["Health", "Fitness", "Wellness", "Gym", "gym", "fitness", "workout", "Sports"],
+      "content_hint": "Weekly gym log for March 2026, push/pull/legs split with weights and cardio"
+    },
+    "file4.pdf": {
+      "expected_folder": "invoices",
+      "expected_name": null,
+      "folder_aliases": ["Finance", "finance", "Invoices", "Bills", "billing"],
+      "content_hint": "PDF invoice document (second invoice from Acme Corp series)"
+    },
+    "file5.pdf": {
+      "expected_folder": "health",
+      "expected_name": null,
+      "folder_aliases": ["Health", "Medical", "medical", "Reports", "healthcare", "fitness"],
+      "content_hint": "Annual health report PDF for 2026"
+    },
+    "file6.jpg": {
+      "expected_folder": "photos",
+      "expected_name": null,
+      "folder_aliases": ["Photos", "photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Smartphone closeup photograph"
+    },
+    "file7.jpg": {
+      "expected_folder": "photos",
+      "expected_name": null,
+      "folder_aliases": ["Photos", "photos", "Images", "images", "Pictures", "pictures", "Media"],
+      "content_hint": "Coffee or cafe photograph"
+    },
+    "file8.jpg": {
+      "expected_folder": "photos",
+      "expected_name": null,
+      "folder_aliases": ["Photos", "photos", "Images", "images", "Pictures", "pictures", "Media", "Nature", "Landscape"],
+      "content_hint": "Forest or ocean landscape photograph"
+    },
+    "file9.csv": {
+      "expected_folder": "datasets",
+      "expected_name": null,
+      "folder_aliases": ["Data", "data", "Datasets", "CSV", "Analytics", "analytics", "Reports", "Science"],
+      "content_hint": "Environmental sensor readings CSV: temperature, humidity, CO2, pressure by location"
+    },
+    "file10.csv": {
+      "expected_folder": "datasets",
+      "expected_name": null,
+      "folder_aliases": ["Data", "data", "Datasets", "CSV", "Analytics", "analytics", "Reports", "Finance", "Sales"],
+      "content_hint": "Product sales data Jan-Feb 2026: product, category, units sold, revenue by region"
+    }
+  }
+}

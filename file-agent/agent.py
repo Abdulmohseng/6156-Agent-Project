@@ -95,7 +95,7 @@ def _run_plan_and_act(args, folder: str, run_id: str):
     if args.dry_run:
         console.print("\n[bold cyan][DRY RUN — plan only, no files will be changed][/bold cyan]")
 
-    approved = show_plan_and_confirm(plan)
+    approved = True if args.yes else show_plan_and_confirm(plan)
     if not approved:
         console.print("[yellow]Aborted by user.[/yellow]")
         sys.exit(0)
@@ -176,6 +176,8 @@ def main():
                             "Copy the built-in sample folder into data/output/run_TIMESTAMP/ "
                             "and run the agent on that copy. Originals are never modified."
                         ))
+    parser.add_argument("--yes", "-y", action="store_true",
+                        help="Auto-approve the plan without interactive confirmation (for scripted/eval runs)")
 
     args = parser.parse_args()
 

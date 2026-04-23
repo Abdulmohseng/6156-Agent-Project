@@ -1,0 +1,32 @@
+FLIGHT & HOTEL ITINERARY — Tokyo Trip
+Travel Dates: April 3–12, 2026
+
+OUTBOUND FLIGHT
+  Airline    : Japan Airlines JAL 062
+  Route      : JFK → NRT (Narita)
+  Departure  : Apr 3, 2026 at 13:00 EST
+  Arrival    : Apr 4, 2026 at 16:35 JST
+  Seat       : 34A (economy, window)
+  Confirmation: JLXK77
+
+HOTEL
+  Name       : Shinjuku Granbell Hotel
+  Address    : 2-14-5 Kabukicho, Shinjuku, Tokyo
+  Check-in   : Apr 4, 2026
+  Check-out  : Apr 11, 2026
+  Room       : Standard Double
+  Confirmation: SGB-29841
+  Breakfast included: Yes
+
+RETURN FLIGHT
+  Airline    : Japan Airlines JAL 063
+  Route      : NRT → JFK
+  Departure  : Apr 11, 2026 at 18:00 JST
+  Arrival    : Apr 11, 2026 at 18:30 EST
+  Seat       : 31C (economy, aisle)
+  Confirmation: JLXK88
+
+ACTIVITIES BOOKED:
+  - TeamLab Borderless Museum (Apr 5, 10:00)
+  - Mount Fuji day tour (Apr 7)
+  - Shinkansen to Kyoto (Apr 8, round trip)
