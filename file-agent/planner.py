@@ -196,6 +196,29 @@ def _simulate_plan(plan: list[dict], files: list[dict]) -> list[tuple]:
     return broken
 
 
+def _prune_unfixable_steps(plan: list[dict], files: list[dict]) -> list[dict]:
+    """
+    Remove any move_file/rename_file steps that still reference non-existent files
+    after the correction pass. These are hallucinated filenames the LLM invented
+    that have no matching real file to be remapped to.
+    """
+    broken = _simulate_plan(plan, files)
+    if not broken:
+        return plan
+
+    broken_indices = {i for i, _, _ in broken}
+    pruned = [step for i, step in enumerate(plan) if i not in broken_indices]
+
+    for i, step in enumerate(pruned):
+        pruned[i] = {**step, "step": i + 1}
+
+    log_warning(
+        f"[PLANNER] Pruned {len(broken_indices)} hallucinated step(s) referencing "
+        f"files that do not exist in the folder."
+    )
+    return pruned
+
+
 def _fix_broken_steps(plan: list[dict], broken: list[tuple],
                       files: list[dict], folder: str, llm) -> list[dict]:
     """
@@ -570,6 +593,9 @@ def planner_node(state: AgentState) -> dict:
                 f"[PLANNER] {len(broken)} step(s) reference files that don't exist — fixing..."
             )
             plan = _fix_broken_steps(plan, broken, files, folder, llm)
+            # Prune any steps that still reference non-existent files after the fix attempt
+            # (hallucinated filenames with no real file to remap to)
+            plan = _prune_unfixable_steps(plan, files)
 
     # ── Programmatically inject rename steps for generic-named images ──────────
     if image_descriptions:
