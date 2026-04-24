@@ -44,3 +44,4 @@ SKIP_ERROR_PATTERNS = (
 
 # ── Executor ───────────────────────────────────────────────────────────────────
 DESTRUCTIVE_TOOLS = {"move_file", "rename_file"}
+MAX_RUN_SECONDS = 400  # hard wall-clock timeout per run

@@ -4,7 +4,7 @@ from state import AgentState
 from tools import list_files, read_file, rename_file, create_folder, move_file
 from utils.confirm import confirm_step
 from utils.logger import log_step_success, log_step_failure, log_step_skipped, log_info
-from config import DESTRUCTIVE_TOOLS
+from config import DESTRUCTIVE_TOOLS, MAX_RUN_SECONDS
 
 TOOL_MAP = {
     "list_files": list_files,
@@ -74,6 +74,18 @@ def executor_node(state: AgentState) -> dict:
             "done": next_step >= len(plan),
             "stats": stats,
         }
+
+    # ── Wall-clock timeout ─────────────────────────────────────────────────────
+    elapsed = time.time() - stats.get("start_time", time.time())
+    if elapsed >= MAX_RUN_SECONDS:
+        remaining = len(plan) - current_step
+        log_info(
+            f"\n[EXECUTOR] [bold red]Time limit reached[/bold red] "
+            f"({elapsed:.0f}s ≥ {MAX_RUN_SECONDS}s) — stopping with {remaining} step(s) remaining."
+        )
+        stats["steps_skipped"] = stats.get("steps_skipped", 0) + remaining
+        stats["timed_out"] = True
+        return {"done": True, "step_results": step_results, "last_error": None, "stats": stats}
 
     # ── All steps done ─────────────────────────────────────────────────────────
     if current_step >= len(plan):

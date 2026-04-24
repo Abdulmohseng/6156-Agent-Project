@@ -3,7 +3,7 @@ from datetime import datetime
 
 from rich.console import Console
 
-from config import RUNS_DIR
+from config import RUNS_DIR, MAX_RUN_SECONDS
 
 console = Console()
 
@@ -64,6 +64,8 @@ def log_error(msg: str):
 def print_summary(stats: dict, manifest_path: str = None):
     console.print()
     console.print("[bold cyan]─── Summary ───────────────────────────────────[/bold cyan]")
+    if stats.get("timed_out"):
+        console.print(f"  [bold red]TIMED OUT[/bold red] after {stats.get('duration_seconds', 0.0)}s (limit: {MAX_RUN_SECONDS}s)")
     console.print(f"  Steps completed : [green]{stats['steps_completed']}[/green]")
     if stats.get("steps_failed"):
         console.print(f"  Steps failed    : [red]{stats['steps_failed']}[/red]")
