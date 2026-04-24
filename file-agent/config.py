@@ -23,7 +23,7 @@ RUNS_DIR = Path.home() / ".file-agent" / "runs"
 TEST_FOLDER = "model_test"
 
 # ── Planner ────────────────────────────────────────────────────────────────────
-PLANNER_NUM_PREDICT = 8192
+PLANNER_NUM_PREDICT = 2048  # mapping output is ~50 tokens/file, much shorter than step lists
 CONTENT_PREVIEW_MAX_CHARS = 400
 CONTENT_PREVIEW_MAX_BYTES = 8192
 
