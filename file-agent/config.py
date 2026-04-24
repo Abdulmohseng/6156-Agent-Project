@@ -28,6 +28,7 @@ CONTENT_PREVIEW_MAX_CHARS = 400
 CONTENT_PREVIEW_MAX_BYTES = 8192
 
 TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".log", ".yaml", ".yml"}
+DOCUMENT_EXTENSIONS = {".pdf", ".docx"}  # content extracted via pdfplumber / python-docx
 
 AMBIGUOUS_STEMS = {
     "doc", "file", "untitled", "temp", "misc", "stuff",

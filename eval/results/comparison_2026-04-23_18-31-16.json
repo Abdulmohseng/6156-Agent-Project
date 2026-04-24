@@ -1,0 +1,135 @@
+{
+  "timestamp": "2026-04-23_18-31-16",
+  "results": [
+    {
+      "run_id": "2026-04-23_18-22-46",
+      "dataset": "model_test",
+      "model": "qwen2.5-coder:14b",
+      "goal": "Organize by type and rename the file names by their content",
+      "timestamp": "2026-04-23T18:22:46",
+      "structural": {
+        "total_files": 10,
+        "files_placed": 7,
+        "files_folder_matched": 5,
+        "coverage": 0.7,
+        "placement_accuracy": 0.5,
+        "per_file": [
+          {
+            "original_name": "file1.txt",
+            "final_name": "invoice_acme_feb2026.txt",
+            "expected_folder": "invoices",
+            "actual_folder": "Finance",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file2.txt",
+            "final_name": "gym_log_mar2026.txt",
+            "expected_folder": "personal_logs",
+            "actual_folder": "Personal",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file3.txt",
+            "final_name": "file3.txt",
+            "expected_folder": "health",
+            "actual_folder": null,
+            "placed": false,
+            "folder_match": false
+          },
+          {
+            "original_name": "file4.pdf",
+            "final_name": "file4.pdf",
+            "expected_folder": "invoices",
+            "actual_folder": null,
+            "placed": false,
+            "folder_match": false
+          },
+          {
+            "original_name": "file5.pdf",
+            "final_name": "file5.pdf",
+            "expected_folder": "health",
+            "actual_folder": null,
+            "placed": false,
+            "folder_match": false
+          },
+          {
+            "original_name": "file6.jpg",
+            "final_name": "silver_smartphone_closeup.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Personal",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file7.jpg",
+            "final_name": "coffee_latte_art.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Food",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file8.jpg",
+            "final_name": "forest_water_mountain_landscape.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Nature",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file9.csv",
+            "final_name": "file9.csv",
+            "expected_folder": "datasets",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file10.csv",
+            "final_name": "file10.csv",
+            "expected_folder": "datasets",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": true
+          }
+        ]
+      },
+      "judge": {
+        "score": 4,
+        "reasoning": "The agent's output has significant misclassifications and missed files, leading to a below-average organization.",
+        "strengths": [
+          "Some files were correctly categorized into folders like 'Data' for CSV files."
+        ],
+        "weaknesses": [
+          "Many files were incorrectly placed or completely omitted. For example, 'file1.txt' was misplaced in 'Finance', and 'file3.txt' and 'file5.pdf' should be under 'health'. Additionally, all personal log files and photos are missing from the organization."
+        ],
+        "folder_quality": "fair",
+        "naming_quality": "fair",
+        "coverage_assessment": "Only 70% of the files were handled, with significant misplacements.",
+        "judge_model": "qwen2.5-coder:14b"
+      },
+      "agent_summary": {
+        "plan_steps": 61,
+        "steps_completed": 18,
+        "steps_failed": 43,
+        "steps_skipped": 43,
+        "replans": 0,
+        "files_moved": 7,
+        "folders_created": 5,
+        "files_renamed": 5,
+        "duration_seconds": 428.87
+      }
+    }
+  ],
+  "aggregate": {
+    "qwen2.5-coder:14b": {
+      "num_runs": 1,
+      "avg_coverage": 0.7,
+      "avg_placement_accuracy": 0.5,
+      "avg_judge_score": 4.0,
+      "avg_duration_seconds": 428.9
+    }
+  }
+}
