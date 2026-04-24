@@ -22,7 +22,7 @@ from pathlib import Path
 import requests
 from rich.console import Console
 
-from config import DEFAULT_MODEL, OLLAMA_BASE_URL, TEST_FOLDER
+from config import DEFAULT_MODEL, DEFAULT_GOAL, OLLAMA_BASE_URL, TEST_FOLDER
 import config_vision
 
 console = Console()
@@ -155,7 +155,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("goal", help="Natural language instruction for organizing files")
+    parser.add_argument("goal", nargs="?", default=DEFAULT_GOAL,
+                        help=f"Organization goal (default: built-in semantic organize+rename goal)")
     parser.add_argument("--folder", default=None,
                         help="Target folder to organize (default: uses --test-run with the built-in sample folder)")
     parser.add_argument("--safe", action="store_true",

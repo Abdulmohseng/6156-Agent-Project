@@ -10,6 +10,13 @@ from pathlib import Path
 # ── Model ──────────────────────────────────────────────────────────────────────
 DEFAULT_MODEL = "qwen2.5-coder:14b"
 
+# ── Goal ───────────────────────────────────────────────────────────────────────
+DEFAULT_GOAL = (
+    "Organize files into meaningful semantic folders based on their content, "
+    "and rename any file with a generic or unclear name to a short descriptive "
+    "snake_case name that reflects what the file actually contains."
+)
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
 RUNS_DIR = Path.home() / ".file-agent" / "runs"
