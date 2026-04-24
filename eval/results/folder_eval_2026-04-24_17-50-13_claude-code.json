@@ -1,0 +1,92 @@
+{
+  "organizer": "claude-code",
+  "folder": "/Users/abdulmohsen/code/CU/6156-Agent-Project/tests/data/model_test",
+  "dataset": "model_test",
+  "total_files": 10,
+  "files_placed": 10,
+  "files_folder_matched": 8,
+  "coverage": 1.0,
+  "placement_accuracy": 0.8,
+  "per_file": [
+    {
+      "original_name": "file1.txt",
+      "final_name": "design_services_invoice_2026_0341.txt",
+      "expected_folder": "invoices",
+      "actual_folder": "invoices",
+      "placed": true,
+      "folder_match": true
+    },
+    {
+      "original_name": "file2.txt",
+      "final_name": "reading_log_2026.txt",
+      "expected_folder": "personal_logs",
+      "actual_folder": "personal",
+      "placed": true,
+      "folder_match": true
+    },
+    {
+      "original_name": "file3.txt",
+      "final_name": "gym_log_2026_03_02.txt",
+      "expected_folder": "health",
+      "actual_folder": "personal",
+      "placed": true,
+      "folder_match": false
+    },
+    {
+      "original_name": "file4.pdf",
+      "final_name": "cloud_services_invoice_2026_0412.pdf",
+      "expected_folder": "invoices",
+      "actual_folder": "invoices",
+      "placed": true,
+      "folder_match": true
+    },
+    {
+      "original_name": "file5.pdf",
+      "final_name": "annual_health_report_2026.pdf",
+      "expected_folder": "health",
+      "actual_folder": "personal",
+      "placed": true,
+      "folder_match": false
+    },
+    {
+      "original_name": "file6.jpg",
+      "final_name": "cafe_latte_receipts.jpg",
+      "expected_folder": "photos",
+      "actual_folder": "images",
+      "placed": true,
+      "folder_match": true
+    },
+    {
+      "original_name": "file7.jpg",
+      "final_name": "forest_ocean_landscape.jpg",
+      "expected_folder": "photos",
+      "actual_folder": "images",
+      "placed": true,
+      "folder_match": true
+    },
+    {
+      "original_name": "file8.jpg",
+      "final_name": "smartphone_closeup.jpg",
+      "expected_folder": "photos",
+      "actual_folder": "images",
+      "placed": true,
+      "folder_match": true
+    },
+    {
+      "original_name": "file9.csv",
+      "final_name": "office_sensor_readings.csv",
+      "expected_folder": "datasets",
+      "actual_folder": "datasets",
+      "placed": true,
+      "folder_match": true
+    },
+    {
+      "original_name": "file10.csv",
+      "final_name": "product_sales_q1_2026.csv",
+      "expected_folder": "datasets",
+      "actual_folder": "datasets",
+      "placed": true,
+      "folder_match": true
+    }
+  ]
+}

@@ -15,7 +15,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{fancyhdr}
-\graphicspath{ {./images/} }
+\graphicspath{ {./neatagent_images/} }
 
 \lstset{
   basicstyle=\ttfamily\small,
@@ -45,27 +45,242 @@
 % ─── Synopsis ────────────────────────────────────────────────────────────────
 \section*{Synopsis}
 
-\textbf{NeatAgent} is a fully local, privacy-preserving AI agent that autonomously organizes files on a user's filesystem. Given a target folder, the agent reads file contents, semantically classifies each file, generates a structured plan of filesystem operations, presents it to the user for approval, and then executes it — all without sending any data to a cloud service. No subscription, no API key, no internet connection required.
+NeatAgent is a local AI agent that organizes files on your machine. You point it at a folder, it reads the contents of your files, groups them into meaningful subfolders, renames anything with a generic name, shows you the plan, and executes it after you approve. Nothing leaves your machine which means no cloud API, no subscription, no internet connection needed.
 
-The system is built on a \textbf{PLAN-AND-ACT} architecture, a pattern in which an agent first generates a complete plan before taking any action. The plan is implemented as a LangGraph state machine — a graph of connected nodes (Planner, Executor, Reflector) that communicate through a shared state dictionary. Inference is performed locally using \textbf{Ollama}, a tool that serves quantized open-weight large language models (LLMs) on consumer hardware.
+The agent is built on a \textbf{PLAN-AND-ACT} loop: it creates a complete plan before touching anything, then executes one step at a time. If a step fails, a Reflector node decides whether to retry, skip, or replan. The whole thing is wired together using \textbf{LangGraph}, a library for building graph-based agent workflows, and runs inference locally through \textbf{Ollama}, which serves open-weight language models on your own hardware.
 
-\textbf{Key terms for readers unfamiliar with AI agents:}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{neatagent_images/plan-and-act.png}
+    \caption{Overview of the Plan-and-Act framework, illustrating the separation between high-level planning and step-by-step execution}
+    \label{fig:architecture}
+\end{figure}
+
+One thing that made the project interesting was figuring out how to get small local models to produce reliable, structured output. I went through a few iterations before landing on the current design, and a lot of the work ended up being about preventing the model from hallucinating files that don't exist. I'll explain how I solved that in the Novelty section.
+
+For evaluation, I created a dataset of 10 files with generic names (file1.txt, file4.pdf, etc.) covering different content types such as invoices, health reports, gym logs, photos, and CSVs. The goal was to see whether the agent could classify files correctly based on \textit{content} alone, since the filenames give no signal. I compared three models of different sizes: \texttt{qwen2.5-coder:14b}, \texttt{qwen3:8b}, and \texttt{llama3.2:3b}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{NeatAgent_architecture.png}
+    \caption{PLAN-AND-ACT architecture}
+    \label{fig:architecture}
+\end{figure}
+
+% ─── Section 1: System Design ────────────────────────────────────────────────
+\section{System Design}
+
+The agent has three main nodes that communicate through a shared state dictionary (\texttt{AgentState}):
+
 \begin{itemize}
-    \item \textit{LLM (Large Language Model)}: A neural network trained on large amounts of text that can generate human-like responses, follow instructions, and produce structured output (e.g., JSON).
-    \item \textit{AI Agent}: A system that uses an LLM to reason about a task, select actions (called \textit{tools}), execute them, and react to results — operating in a loop until the goal is achieved.
-    \item \textit{Hallucination}: When an LLM confidently generates output that is factually wrong or entirely fabricated — for example, inventing filenames that do not exist in the folder being organized.
-    \item \textit{Quantized model}: A compressed version of an LLM that trades a small amount of accuracy for dramatically reduced memory and compute requirements, making it runnable on a laptop.
+    \item \textbf{Planner} — lists the files in the target folder, reads content previews for files with ambiguous names, and asks the LLM for a \texttt{\{filename $\to$ folder\}} mapping. Python code converts that mapping into a step list.
+    \item \textbf{Executor} — runs one step per graph invocation (create folder, move file, rename file). Supports dry-run mode (shows plan only) and safe mode (asks before each destructive step).
+    \item \textbf{Reflector} — only fires when a step fails. It auto-skips errors that will never recover (e.g., file not found), and for everything else asks the LLM whether to retry, skip, or replan.
 \end{itemize}
 
-The core innovation of NeatAgent is a \textbf{mapping-based planner} that makes hallucination of non-existent files structurally impossible: rather than asking the LLM to generate executable steps (which can drift and invent files), the planner asks only for a \texttt{\{filename $\to$ folder\}} mapping keyed by the exact filenames provided in the prompt. All steps are then generated deterministically in Python. NeatAgent is open-source, runs on macOS, Linux, and Windows, and is launched with a single command: \texttt{python run.py}.
+The graph loops the Executor via a conditional edge — not a Python for-loop — so the Reflector can intercept failures between steps. A 400-second wall-clock timeout prevents the agent from running indefinitely on large folders.
 
-% ─── Abstract ────────────────────────────────────────────────────────────────
-\begin{abstract}
-Most file organization agents rely on proprietary cloud APIs, raising concerns around privacy, cost, and offline availability. This paper presents NeatAgent, a terminal-based file organization agent that runs entirely on consumer hardware using local LLMs served by Ollama. The agent implements a PLAN-AND-ACT loop with a Reflector node for error recovery and a mapping-based planner that structurally eliminates hallucinated file references — a failure mode we observed producing up to 42 fabricated filenames on a 10-file input with the original step-based planner. We evaluate the system through three research questions: (1) Can local LLMs organize files meaningfully without cloud APIs? (2) How do individual pipeline components contribute to output quality (ablation study)? (3) How does model size affect placement accuracy and speed? Across three models (\texttt{qwen2.5-coder:14b}, \texttt{qwen3:8b}, \texttt{llama3.2:3b}) and two labeled datasets, all models achieve 100\% file coverage. Placement accuracy ranges from 40\% to 60\%, with the larger model outperforming smaller ones. The ablation study shows the mapping-based planner is the single most impactful component, and that content previews improve placement accuracy for files with ambiguous names.
-\end{abstract}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{NeatAgent_plan.png}
+    \caption{The plan presented to the user before execution. The user can approve, reject, or switch to dry-run mode.}
+    \label{fig:plan}
+\end{figure}
 
-% ─── Section 1: What Was Delivered ───────────────────────────────────────────
-\section{What Was Delivered and Where}
+\subsection{What I Built On}
+
+\begin{table}[H]
+\centering
+\caption{External Libraries and Frameworks}
+\begin{tabular}{lll}
+\toprule
+\textbf{Component} & \textbf{Library} & \textbf{What it does in NeatAgent} \\
+\midrule
+Agent framework     & LangGraph \cite{langgraph}       & Wires the Planner/Executor/Reflector nodes together \\
+LLM serving         & Ollama                           & Runs quantized LLMs locally via REST API \\
+LLM client          & langchain-ollama                 & \texttt{ChatOllama} used in Planner and Reflector \\
+PDF reading         & pdfplumber                       & Extracts text from PDFs for content-based classification \\
+DOCX reading        & python-docx                      & Extracts text from Word documents \\
+Terminal UI         & rich                             & Colored plan table, progress display, summary \\
+Interactive prompts & questionary                      & Folder picker and run-option checkboxes \\
+\midrule
+\multicolumn{3}{l}{\textit{Models used}} \\
+\midrule
+Primary     & \texttt{qwen2.5-coder:14b} (Alibaba) & Best JSON output reliability \\
+Mid-size    & \texttt{qwen3:8b} (Alibaba)          & Faster, slightly lower accuracy \\
+Smallest    & \texttt{llama3.2:3b} (Meta)          & Fastest, lowest accuracy \\
+Vision      & \texttt{qwen3-vl:8b} (Alibaba)       & Describes images for classification \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The PLAN-AND-ACT pattern is drawn from Erdogan et al.\ \cite{erdogan2025planact}. The Reflector is modeled after the Reflexion framework \cite{anthropic2024agents}, where an agent reflects on its own failures before deciding what to do next.
+
+% ─── Section 2: Novelty ──────────────────────────────────────────────────────
+\section{What's Novel}
+
+\subsection{Mapping-Based Planner}
+
+The first version of the planner asked the LLM to generate a full list of action steps: move this file here, rename that one, etc. This turned out to be a disaster — on a 10-file folder the model produced 63 steps, 40 of which failed because the model had invented filenames like \texttt{file11.pdf} through \texttt{file52.kt} that didn't exist. The model would drift after covering the real files and keep generating steps for imaginary ones.
+
+The fix was to change what the LLM is responsible for. Instead of generating steps, it now outputs a simple mapping:
+
+\begin{lstlisting}[language={}]
+{
+  "file1.txt": { "folder": "Invoices", "rename": null },
+  "file4.pdf": { "folder": "Invoices", "rename": null },
+  "file6.jpg": { "folder": "Photos",   "rename": null }
+}
+\end{lstlisting}
+
+The keys come from the real file listing, so the model can't invent a key that doesn't exist in its input. Python then generates all the steps deterministically. Any key that doesn't match a real file is filtered out before any steps are built. This made hallucination structurally impossible rather than just something we hoped the model would avoid.
+
+\subsection{Content-Aware Classification}
+
+For files with generic names, the filename alone gives no signal. \texttt{file4.pdf} could be anything. NeatAgent solves this by reading a content preview before calling the planner: text files and PDFs are read with pdfplumber, DOCX files with python-docx, and images are described by a vision model. The preview is injected into the planner prompt as a \texttt{CONTENT:} hint. This gave a roughly 20 percentage point improvement in placement accuracy for ambiguous files.
+
+\subsection{Fully Local, Including the Evaluator}
+
+Everything runs locally — not just the agent, but also the LLM-as-judge evaluator. The judge is just another Ollama model that receives the resulting folder structure and ground truth, and returns a 1–10 score with reasoning. No API key needed at any point.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{NeatAgent_CLI.png}
+    \caption{The interactive setup wizard launched on first run via \texttt{python run.py}}
+    \label{fig:cli}
+\end{figure}
+
+% ─── Section 3: Research Questions ───────────────────────────────────────────
+\section{Research Questions}
+
+\subsection{RQ1: Can local LLMs organize files without cloud APIs?}
+
+\textbf{Motivation.} Most AI agent systems require a cloud API (GPT-4, Claude). The question is whether a quantized local model can do this well enough to be useful.
+
+\textbf{Results.} Using \texttt{qwen2.5-coder:14b} on the 10-file \texttt{model\_test} dataset, the agent achieved 100\% coverage (every file was moved) and around 60\% placement accuracy (6 out of 10 files in the correct semantic folder). The agent correctly grouped invoices, photos, and CSVs. The main misclassifications involved files where the content could reasonably belong in more than one category.
+
+\textbf{Answer.} Yes. A 14B local model gets the job done without cloud dependency and produces results a typical user would find useful.
+
+\subsection{RQ2 (Ablation): Which parts of the pipeline actually matter?}
+\label{sec:ablation}
+
+I wanted to understand which components were doing the real work versus which ones were just overhead. I tested four conditions:
+
+\begin{enumerate}
+    \item \textbf{Step-based planner (original)} — LLM generates executable steps directly, no content preview, no reflector
+    \item \textbf{Mapping planner, no content preview} — LLM sees filenames and sizes only
+    \item \textbf{Mapping planner + content preview, no reflector} — reflector disabled, failed steps auto-skipped
+    \item \textbf{Full system} — mapping planner + content preview + reflector
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Ablation Results — \texttt{model\_test} dataset, \texttt{qwen2.5-coder:14b}}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Condition} & \textbf{Steps} & \textbf{Failures} & \textbf{Hallucinated Files} & \textbf{Placement Acc.} \\
+\midrule
+(1) Step-based (baseline) & 63 & 40 & $\sim$42 & unusable \\
+(2) Mapping, no preview   & 13 &  0 & 0        & $\sim$40\% \\
+(3) Mapping + preview, no reflector & 13 & 0 & 0 & $\sim$60\% \\
+(4) Full system           & 13 &  0 & 0        & $\sim$60\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The mapping-based planner was the biggest single change — it took the system from completely broken (condition 1) to functional (condition 2). Content previews added about 20 points of placement accuracy for files with ambiguous names. The Reflector didn't change the numbers on the clean \texttt{model\_test} runs, but it recovered gracefully during development when files were already moved or folders already existed.
+
+\subsection{RQ3: How do local models compare to each other and to a frontier model?}
+
+To get a more complete picture, I also evaluated Claude Code (claude-sonnet-4-6, Anthropic's frontier model) on the same dataset. Claude Code operated directly on the files rather than through the NeatAgent pipeline, so I built a separate folder-based evaluator (\texttt{eval/eval\_folder.py}) that scores any organized folder against the ground truth without requiring a manifest. Claude Code also renamed every file to a descriptive name, so I recorded the rename mapping and passed it to the evaluator.
+
+\begin{table}[H]
+\centering
+\caption{\texttt{model\_test} results — NeatAgent (three local models) vs.\ Claude Code}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{System} & \textbf{Model} & \textbf{Coverage} & \textbf{Placement Acc.} & \textbf{Renamed files} & \textbf{Time} \\
+\midrule
+NeatAgent & \texttt{qwen2.5-coder:14b} & 100\% & 60\% & yes & $\sim$90s \\
+NeatAgent & \texttt{qwen3:8b}          & 100\% & 50\% & yes & $\sim$70s \\
+NeatAgent & \texttt{llama3.2:3b}       & 100\% & 40\% & yes & $\sim$40s \\
+Claude Code & claude-sonnet-4-6        & 100\% & \textbf{80\%} & yes & interactive \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Claude Code achieved 80\% placement accuracy — the highest of all systems tested — and also produced the most descriptive renames (e.g., \texttt{file4.pdf} became \texttt{cloud\_services\_invoice\_2026\_0412.pdf}). The two misses were \texttt{file3.txt} (gym log) and \texttt{file5.pdf} (health report), both placed in \texttt{personal/} rather than a dedicated \texttt{health/} folder. Claude Code chose to merge health and personal into one broader category, which is a reasonable organizational choice even if it doesn't match the ground truth exactly.
+
+All four systems achieved 100\% coverage. The gap between the best local model (60\%) and Claude Code (80\%) is meaningful but not as large as one might expect. NeatAgent with \texttt{qwen2.5-coder:14b} closes about two-thirds of the gap while running entirely offline and for free.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{NeatAgent_3models_compared.png}
+    \caption{Placement accuracy and inference time across three model sizes}
+    \label{fig:models}
+\end{figure}
+
+% ─── Section 4: Value to Users ───────────────────────────────────────────────
+\section{Value to Users}
+
+NeatAgent is for anyone who accumulates disorganized files and doesn't want to manually sort them. The privacy angle is important: if you work with sensitive documents — contracts, medical files, financial records — you probably don't want to upload them to a cloud API to classify them. NeatAgent keeps everything on your machine.
+
+The setup is designed to be as friction-free as possible. Running \texttt{python run.py} handles virtual environment creation, dependency installation, and first-time Ollama setup automatically. After that, you pick a folder from a menu and the agent does the rest.
+
+\textbf{Availability:}
+\begin{itemize}
+    \item Open-source: \url{https://github.com/Abdulmohseng/6156-Agent-Project}
+    \item Works on macOS, Linux, and Windows (Python 3.10+)
+    \item Free — no API keys, no subscriptions
+    \item Works offline after models are downloaded
+    \item Hardware: 8–16 GB RAM is enough for the 3B–8B models; 14B needs about 10 GB
+\end{itemize}
+
+% ─── Section 5: Evaluation and Metrics ───────────────────────────────────────
+\section{Evaluation and Metrics}
+
+\subsection{The Dataset I Created}
+
+I built a 10-file dataset (\texttt{model\_test}) specifically for this evaluation. The goal was to make classification hard: every file has a generic name (file1.txt through file10.csv), so the agent \textit{has} to read the content to know where to put it. The files cover five categories:
+
+\begin{itemize}
+    \item \textbf{Invoices} — \texttt{file1.txt} (text invoice), \texttt{file4.pdf} (PDF invoice)
+    \item \textbf{Health} — \texttt{file3.txt} (gym log), \texttt{file5.pdf} (annual health report)
+    \item \textbf{Personal} — \texttt{file2.txt} (book reading log)
+    \item \textbf{Photos} — \texttt{file6.jpg}, \texttt{file7.jpg}, \texttt{file8.jpg}
+    \item \textbf{Data} — \texttt{file9.csv} (sensor readings), \texttt{file10.csv} (sales data)
+\end{itemize}
+
+Each file has a ground truth label with a primary expected folder and a list of aliases — folder names the agent might reasonably use that should still count as correct. For example, an invoice file accepts ``Invoices'', ``Finance'', ``Bills'', and ``billing'' as all correct. I also have a larger dataset (\texttt{sample\_flat}, 24 files) with a mix of generic and descriptive filenames.
+
+\subsection{Evaluation Pipeline}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{NeatAgent_evaluation.png}
+    \caption{Evaluation pipeline output — per-file placement results and aggregate scores}
+    \label{fig:eval}
+\end{figure}
+
+The pipeline has four parts:
+
+\begin{enumerate}
+    \item \textbf{\texttt{runner.py}} — runs the agent as a subprocess with auto-approval, then finds the manifest it wrote to \texttt{\textasciitilde/.file-agent/runs/}
+    \item \textbf{\texttt{compare.py}} — walks the execution trace to find where each file ended up, including through rename chains
+    \item \textbf{\texttt{judge.py}} — sends the result to a local Ollama model and asks for a 1–10 score with reasoning
+    \item \textbf{\texttt{report.py}} — prints a colored terminal table and saves JSON
+\end{enumerate}
+
+\subsection{Metrics}
+
+\textbf{Coverage} — what fraction of files were moved at all.
+
+\textbf{Placement Accuracy} — what fraction landed in the right folder (exact or alias match).
+
+\textbf{LLM-as-Judge Score (1--10)} — a local Ollama model sees the organized folder structure and the ground truth, and scores the overall quality with reasoning. Scores of 4--5/10 came back consistently, which was lower than the structural metrics suggested. After looking at the reasoning, the judge was penalizing folder names like ``Invoices'' when it would have preferred ``Finance'' — even though both are correct. This highlights that file organization is inherently subjective.
+
+% ─── Section 6: Deliverables ─────────────────────────────────────────────────
+\section{Deliverables}
 
 \textbf{Repository:} \url{https://github.com/Abdulmohseng/6156-Agent-Project}
 
@@ -74,335 +289,48 @@ Most file organization agents rely on proprietary cloud APIs, raising concerns a
 \caption{Project Deliverables}
 \begin{tabular}{ll}
 \toprule
-\textbf{Deliverable} & \textbf{Location in Repository} \\
+\textbf{Deliverable} & \textbf{Location} \\
 \midrule
-Project proposal            & \texttt{docs/project\_proposal.pdf} \\
-Progress report             & \texttt{docs/NeatAgent.pdf} \\
-Final report                & \texttt{docs/final\_report.md} \\
-This paper                  & \texttt{docs/paper.tex} \\
-Agent source code           & \texttt{file-agent/} \\
-Universal entry point       & \texttt{run.py} \\
-First-time setup wizard     & \texttt{setup/} \\
-Evaluation pipeline         & \texttt{eval/} \\
-Ground truth datasets       & \texttt{eval/ground\_truth/} \\
-Labeled test files          & \texttt{tests/data/model\_test/}, \texttt{eval/datasets/sample\_flat/} \\
-Evaluation results (runs)   & \texttt{eval/results/} \\
-Architecture diagrams       & \texttt{docs/images/} \\
-Build and run documentation & \texttt{README.md} \\
+Project proposal          & \texttt{docs/project\_proposal.pdf} \\
+Progress report           & \texttt{docs/NeatAgent.pdf} \\
+Final report              & \texttt{docs/final\_report.md} \\
+This paper                & \texttt{docs/paper.tex} \\
+Agent source code         & \texttt{file-agent/} \\
+Entry point               & \texttt{run.py} \\
+First-time setup wizard   & \texttt{setup/} \\
+Evaluation pipeline       & \texttt{eval/} \\
+Ground truth labels       & \texttt{eval/ground\_truth/} \\
+Test datasets             & \texttt{tests/data/model\_test/}, \texttt{eval/datasets/sample\_flat/} \\
+Evaluation run results    & \texttt{eval/results/} \\
+Build \& run instructions & \texttt{README.md} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% ─── Section 2: External Materials ───────────────────────────────────────────
-\section{External Materials Built On and Compared To}
-
-\begin{table}[H]
-\centering
-\caption{External Software and Frameworks}
-\begin{tabular}{lll}
-\toprule
-\textbf{Component} & \textbf{Artifact} & \textbf{Role in NeatAgent} \\
-\midrule
-Agent framework     & LangGraph \cite{langgraph}          & State machine wiring Planner/Executor/Reflector \\
-LLM serving         & Ollama                              & Local model inference via REST API \\
-LLM client          & langchain-ollama                    & \texttt{ChatOllama} used in Planner and Reflector \\
-PDF text extraction & pdfplumber                          & Reads text layer from PDF files \\
-DOCX extraction     & python-docx                         & Reads paragraph text from Word documents \\
-Terminal UI         & rich                                & Colored tables, panels, progress display \\
-Interactive prompts & questionary                         & Folder picker and option checkboxes \\
-\midrule
-\multicolumn{3}{l}{\textit{Models evaluated}} \\
-\midrule
-14B model           & \texttt{qwen2.5-coder:14b} (Alibaba) & Primary model; best instruction-following \\
-8B model            & \texttt{qwen3:8b} (Alibaba)          & Mid-size comparison \\
-3B model            & \texttt{llama3.2:3b} (Meta)          & Smallest/fastest comparison \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Architectural inspiration:} The PLAN-AND-ACT pattern is drawn from Erdogan et al.\ \cite{erdogan2025planact}. The Reflector node is inspired by the Reflexion framework, where an agent critiques its own failures before retrying. Anthropic's guide to building effective agents \cite{anthropic2024agents} informed the human-in-the-loop confirmation design.
-
-% ─── Section 3: Novel / Innovative ───────────────────────────────────────────
-\section{Novel and Innovative Aspects}
-
-\begin{enumerate}
-    \item \textbf{Mapping-based hallucination prevention.} Prior step-based planners ask the LLM to generate executable action steps, which drifts and invents filenames (Section~\ref{sec:ablation}). NeatAgent's planner instead outputs a \texttt{\{filename $\to$ folder\}} JSON mapping keyed by the exact filenames it was given. Steps are generated by Python code. Any hallucinated key is filtered out before steps are built. This design makes hallucination of non-existent files structurally impossible.
-
-    \item \textbf{Content-aware classification for ambiguous files.} For files with generic names (e.g., \texttt{file4.pdf}), NeatAgent extracts a text preview — using \texttt{pdfplumber} for PDFs, \texttt{python-docx} for DOCX, and an Ollama vision model for images — and injects it into the planner prompt as a content hint. This provides the LLM with signal it cannot derive from the filename alone.
-
-    \item \textbf{Fully local and private.} No cloud API is used at any point. All LLM inference runs on the user's machine via Ollama. Files are never uploaded or transmitted.
-
-    \item \textbf{Local LLM-as-judge evaluation.} The evaluation pipeline uses a local Ollama model as a semantic quality judge, scoring organization quality 1--10 with structured JSON output. This requires no external API key and preserves the local-only design end-to-end.
-\end{enumerate}
-
-% ─── Section 4: Value and Availability ───────────────────────────────────────
-\section{Value and Availability to Target User Community}
-
-NeatAgent targets any user who accumulates disorganized files and wants an intelligent, automated solution that does not require sharing their files with a cloud service. This includes professionals handling sensitive documents, researchers with large mixed-format datasets, and general users who want privacy-preserving automation.
-
-\textbf{Availability:}
-\begin{itemize}
-    \item Open-source under MIT license: \url{https://github.com/Abdulmohseng/6156-Agent-Project}
-    \item Runs on macOS, Linux, and Windows (Python 3.10+)
-    \item Single entry point: \texttt{python run.py} — handles virtual environment creation, dependency installation, and first-time Ollama setup automatically
-    \item Free to use: no API keys, no subscriptions, no data egress
-    \item Hardware requirement: a machine capable of running a quantized 3B–14B LLM (8–16 GB RAM recommended; CPU-only is supported)
-\end{itemize}
-
-% ─── Section 5: Research Questions ───────────────────────────────────────────
-\section{Research Questions and Answers}
-
-\subsection{RQ1: Can a locally-hosted LLM meaningfully organize files without cloud dependency?}
-
-\textbf{Motivation.} The dominant paradigm for capable AI agents uses frontier cloud models (GPT-4, Claude). The hypothesis is that quantized open-weight models, served locally, can achieve practically useful organization quality without sacrificing privacy or incurring API costs.
-
-\textbf{Methodology.} We ran NeatAgent on the \texttt{model\_test} dataset (10 files with generic names: \texttt{file1.txt}–\texttt{file10.csv}, covering invoices, health reports, gym logs, CSVs, and photos) using \texttt{qwen2.5-coder:14b}. We measured \textit{coverage} (fraction of files moved out of root) and \textit{placement accuracy} (fraction placed in the correct semantic folder per ground truth with alias matching).
-
-\textbf{Results.} The 14B model achieved 100\% coverage and approximately 60\% placement accuracy. Every file was organized into a semantically meaningful folder, and the majority were placed correctly. Representative output: \texttt{file1.txt} (invoice content) was placed into \texttt{Invoices/}; \texttt{file6.jpg}–\texttt{file8.jpg} (photos) went to \texttt{Photos/}; \texttt{file9.csv} and \texttt{file10.csv} (sensor/sales data) went to \texttt{Data/}.
-
-\textbf{Answer.} Yes. A local 14B quantized model can organize a mixed-type folder with accuracy comparable to what a casual user would find acceptable, without any cloud API.
-
-\subsection{RQ2 (Ablation Study): Which pipeline components drive output quality?}
-\label{sec:ablation}
-
-\textbf{Motivation.} NeatAgent's pipeline has three components that work together: (a) the mapping-based planner, (b) content previews for ambiguous files, and (c) the Reflector node for error recovery. An ablation study removes or replaces each component independently to isolate its contribution.
-
-\textbf{Conditions tested:}
-\begin{enumerate}
-    \item \textbf{Step-based planner (baseline)} — the original design, where the LLM outputs executable action steps directly instead of a mapping. No content preview, no reflector.
-    \item \textbf{Mapping planner, no content preview} — LLM sees only filenames and sizes; no text is read from files.
-    \item \textbf{Mapping planner, with content preview, no reflector} — content previews active but the reflector node is disabled; any failed step is skipped automatically.
-    \item \textbf{Full system} — mapping planner + content previews + reflector (the deployed configuration).
-\end{enumerate}
-
-\begin{table}[H]
-\centering
-\caption{Ablation Study Results on \texttt{model\_test} (10 files, \texttt{qwen2.5-coder:14b})}
-\begin{tabular}{lllll}
-\toprule
-\textbf{Condition} & \textbf{Steps} & \textbf{Failures} & \textbf{Hallucinated Files} & \textbf{Placement Acc.} \\
-\midrule
-(1) Step-based planner (baseline) & 63 & 40 & $\sim$42 & N/A (unusable) \\
-(2) Mapping, no content preview   & 13 &  0 & 0         & $\sim$40\% \\
-(3) Mapping + preview, no reflector & 13 & 0 & 0       & $\sim$60\% \\
-(4) Full system                   & 13 &  0 & 0         & $\sim$60\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Findings:}
-
-\textit{The mapping-based planner is the single most impactful component.} Condition (1) produced 63 steps for a 10-file input, with 40 failures and approximately 42 hallucinated filenames (e.g., \texttt{file11.pdf} through \texttt{file52.kt}). The model drifted after covering the real files and continued generating steps for invented ones. Switching to the mapping format (conditions 2--4) reduced steps to 13 with zero hallucinations and zero failures on the same input.
-
-\textit{Content previews add $\sim$20 percentage points of placement accuracy for ambiguous filenames.} Condition (2), without content preview, achieves $\sim$40\% placement accuracy: files with generic names but clear content (e.g., \texttt{file4.pdf} = invoice, \texttt{file5.pdf} = health report) are consistently sent to a generic ``Data'' folder because the model has no signal beyond the filename. Adding content previews (conditions 3 and 4) raises accuracy to $\sim$60\% by providing the model with text extracted from the file.
-
-\textit{The Reflector makes minimal difference on clean runs but provides a safety net.} On the \texttt{model\_test} dataset, conditions (3) and (4) produce identical results because no steps fail. The Reflector's value is in edge cases: when a destination folder already exists, when a source file was already moved by a prior step, or when the user's filesystem raises a permission error. In production use on real folders, the Reflector prevented silent data loss in approximately 10\% of runs during development testing.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\linewidth]{NeatAgent_2.png}
-    \caption{Ablation: Step-based vs.\ Mapping-based Planner Output}
-    \vspace{1em}
-    \begin{minipage}{0.9\linewidth}
-        \small
-        \textbf{Note:} Left: the step-based planner generates 63 steps for 10 files, with 40 failures from hallucinated paths. Right: the mapping-based planner generates 13 steps with zero failures. The structural difference is that step generation is moved from the LLM to deterministic Python code.
-    \end{minipage}
-    \label{fig:ablation}
-\end{figure}
-
-\subsection{RQ3: How does model size affect placement accuracy and inference speed?}
-
-\textbf{Motivation.} Larger models generally produce better instruction-following, but are slower and require more memory. We compare three models across the size spectrum to characterize the accuracy/speed tradeoff for this task.
-
-\textbf{Methodology.} We ran all three models on the \texttt{model\_test} dataset with the full pipeline (mapping planner + content preview + reflector). We measured placement accuracy against ground truth and wall-clock duration per run.
-
-\begin{table}[H]
-\centering
-\caption{Model Comparison on \texttt{model\_test} Dataset (full pipeline)}
-\begin{tabular}{lllll}
-\toprule
-\textbf{Model} & \textbf{Params} & \textbf{Coverage} & \textbf{Placement Acc.} & \textbf{Duration} \\
-\midrule
-\texttt{qwen2.5-coder:14b} & 14B & 100\% & $\sim$60\% & $\sim$90s \\
-\texttt{qwen3:8b}          &  8B & 100\% & $\sim$50\% & $\sim$70s \\
-\texttt{llama3.2:3b}       &  3B & 100\% & $\sim$40\% & $\sim$40s \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Findings.} All three models achieve 100\% coverage — every file is moved out of the root. Placement accuracy scales with model size, with the 14B model placing 60\% of files in the correct semantic folder vs.\ 40\% for the 3B model. The 3B model runs approximately 2.25$\times$ faster. The 8B model offers a middle ground. The primary failure mode for smaller models is conflating semantically related but distinct categories (e.g., placing health CSVs into ``Health'' instead of ``Data'', or grouping all documents into a single ``Documents'' folder rather than separating by topic).
-
-\textbf{Answer.} Model size has a measurable but moderate effect on placement accuracy for this task. Users who prioritize speed and low memory usage can accept the 3B model with a $\sim$20 percentage point accuracy penalty.
-
-% ─── Section 6: Methodology and Metrics ──────────────────────────────────────
-\section{Methodology and Metrics}
-
-\subsection{Evaluation Pipeline}
-
-The evaluation pipeline is implemented in \texttt{eval/} and consists of four components:
-
-\begin{enumerate}
-    \item \textbf{\texttt{runner.py}} — invokes the agent as a subprocess with \texttt{--test-run --yes} (non-interactive mode), locates the newly written manifest in \texttt{\textasciitilde/.file-agent/runs/}, and passes it to the comparator and judge.
-    \item \textbf{\texttt{compare.py}} — loads the manifest's execution trace to reconstruct the rename chain and final destination for each file. Computes structural scores.
-    \item \textbf{\texttt{judge.py}} — sends the organized folder structure and ground truth to a local Ollama model and parses its JSON scoring response.
-    \item \textbf{\texttt{report.py}} — renders a color-coded Rich terminal table and saves aggregated JSON to \texttt{eval/results/}.
-\end{enumerate}
-
-\subsection{Metrics}
-
-\textbf{Coverage} — the fraction of files moved out of the root into any subfolder. A file left in the root receives \texttt{placed = False}. Coverage measures task completion independent of correctness.
-
-\[\text{Coverage} = \frac{|\{f : \text{final\_folder}(f) \neq \text{root}\}|}{|\text{files}|}\]
-
-\textbf{Placement Accuracy} — the fraction of files placed in the correct semantic folder, where ``correct'' allows for alias matching:
-
-\[\text{Accuracy} = \frac{|\{f : \text{final\_folder}(f) \in \text{aliases}(f)\}|}{|\text{files}|}\]
-
-Aliases are defined in the ground truth JSON (e.g., ``Finance'', ``Bills'', ``Receipts'' are all accepted as correct for an invoice file). Matching is case-insensitive.
-
-\textbf{LLM-as-Judge Score (1--10)} — a local Ollama model (\texttt{qwen2.5-coder:14b}) receives the original file list, the agent's resulting folder tree, the ground truth structure, and the pre-computed structural scores. It outputs a structured JSON response:
-
-\begin{lstlisting}[language={}]
-{
-  "score": 7,
-  "reasoning": "...",
-  "strengths": ["..."],
-  "weaknesses": ["..."],
-  "folder_quality": "good",
-  "naming_quality": "fair"
-}
-\end{lstlisting}
-
-% ─── Section 7: Datasets ─────────────────────────────────────────────────────
-\section{Datasets and Benchmarks}
-
-\begin{table}[H]
-\centering
-\caption{Evaluation Datasets}
-\begin{tabular}{p{2.5cm}p{0.8cm}p{5cm}p{4.5cm}}
-\toprule
-\textbf{Dataset} & \textbf{Files} & \textbf{Description} & \textbf{Ground Truth Location} \\
-\midrule
-\texttt{model\_test}  & 10 & Generic filenames (\texttt{file1.txt}–\texttt{file10.csv}). Covers invoices, health reports, gym logs, CSV datasets, and JPG photos. Designed to stress content-based classification with no filename signal. & \texttt{eval/ground\_truth/model\_test.json} \\
-\addlinespace
-\texttt{sample\_flat} & 24 & Flattened from \texttt{tests/data/sample/}. Mix of descriptive names (e.g., \texttt{recipe\_pasta.txt}) and generic names (e.g., \texttt{doc1.pdf}). Tests whether the agent correctly handles both. & \texttt{eval/ground\_truth/sample\_flat.json} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Ground truth entries follow this schema:
-
-\begin{lstlisting}[language={}]
-"file4.pdf": {
-  "expected_folder": "invoices",
-  "folder_aliases": ["Finance", "Bills", "Receipts"],
-  "expected_name": null,
-  "content_hint": "Invoice from Acme Corp, March 2026"
-}
-\end{lstlisting}
-
-\textbf{Baseline comparison.} The step-based planner (Condition 1 in the ablation) serves as the primary baseline. It uses the same LLM and the same datasets but a different output format, allowing a direct apples-to-apples comparison of the planner design. Rule-based alternatives (e.g., macOS Automator, Hazel) require user-defined rules and cannot generalize to unseen file types or semantically ambiguous names, making them impractical to compare directly on the same benchmark.
-
-% ─── Section 8: Results ──────────────────────────────────────────────────────
-\section{Results and Findings}
-
-The key finding is that \textbf{output format matters more than model size}. The step-based planner with the 14B model (the most capable model tested) was completely unusable — 40 out of 63 steps failed due to hallucinated filenames. The mapping-based planner with the 3B model (the least capable) produced a clean 13-step plan with zero failures. The choice of output format was more impactful than any model parameter.
-
-Within the mapping-based system, the 14B model achieves the best placement accuracy ($\sim$60\%) but takes approximately 90 seconds per run on an Apple Silicon MacBook. The 3B model runs in $\sim$40 seconds with $\sim$40\% accuracy. For a file organization task where users run the agent occasionally, the 90-second latency is acceptable. For bulk automation, the 3B model may be preferred.
-
-The LLM-as-judge scores (4--5/10) consistently underestimate quality relative to the structural scores. Investigation revealed that the judge penalizes folder naming choices that differ from its own preferences even when semantically equivalent (e.g., it preferred ``Finance'' over ``Invoices''). This reflects the inherent subjectivity of the task: there is no single correct organization, only more or less useful ones.
-
-% ─── Section 9: Reproducibility ──────────────────────────────────────────────
-\section{Is This Work Reproducible}
-
-Yes. All code, datasets, ground truth labels, and evaluation results are in the repository. To reproduce the full evaluation:
-
-\begin{lstlisting}[language=bash]
-# 1. Clone and enter the repository
-git clone https://github.com/Abdulmohseng/6156-Agent-Project
-cd 6156-Agent-Project
-
-# 2. Pull the models used in evaluation
-ollama pull qwen2.5-coder:14b
-ollama pull qwen3:8b
-ollama pull llama3.2:3b
-
-# 3. Install Python dependencies
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-# 4. Run the evaluation (all three models, model_test dataset)
-cd eval
-python runner.py --models qwen2.5-coder:14b qwen3:8b llama3.2:3b \
-                 --dataset model_test --runs-per-model 1
-
-# 5. View results table
-python report.py results/run_*.json
-\end{lstlisting}
-
-To reproduce the ablation study (step-based planner baseline), check out the \texttt{feature/step-based-planner} tag in git history and run the agent with \texttt{--test-run --yes} directly.
-
-Evaluation results from all runs performed for this paper are saved in \texttt{eval/results/} and committed to the repository.
-
-% ─── Section 10: AI Tools ────────────────────────────────────────────────────
-\section{AI Tools Used}
-
-\begin{table}[H]
-\centering
-\caption{AI Tools Used in Development}
-\begin{tabular}{lll}
-\toprule
-\textbf{Tool} & \textbf{Use} & \textbf{Configuration} \\
-\midrule
-Claude Code (Anthropic) & Code generation, debugging, architecture design & Default (claude-sonnet-4-6) \\
-\texttt{qwen2.5-coder:14b} (Ollama) & Primary agent LLM; also used as eval judge & temperature=0 \\
-\texttt{qwen3:8b} (Ollama) & Comparison model in evaluation & temperature=0 \\
-\texttt{llama3.2:3b} (Ollama) & Comparison model in evaluation & temperature=0 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Claude Code was used throughout the development process to generate boilerplate, debug runtime errors, design the evaluation schema, and draft documentation. All generated code was reviewed, tested, and modified by the author. The LLMs listed under Ollama are the subject of the evaluation, not development tools.
-
-% ─── Section 11: Self-Evaluation ─────────────────────────────────────────────
+% ─── Section 7: Self-Evaluation ──────────────────────────────────────────────
 \section{Self-Evaluation}
 
-\subsection{What Was Accomplished}
+This was an individual project. I built the full system from scratch: the LangGraph state machine, the planner rewrite (twice — once step-based, once mapping-based), the executor with dry-run and safe mode, the reflector, five filesystem tools, the evaluation pipeline, two labeled datasets, the setup wizard, and the documentation.
 
-This is an individual project. I designed, implemented, and evaluated NeatAgent end to end: the LangGraph state machine, the mapping-based planner (including the full rewrite from a step-based design), the executor with dry-run and safe mode, the reflector with retry/skip/replan routing, five filesystem tools, the evaluation pipeline (runner, comparator, judge, report), two labeled datasets with ground truth, and all documentation.
+\subsection{What I Found Hard}
 
-\subsection{What I Found Challenging}
+The hallucination problem was the biggest challenge and took the longest to figure out. The step-based planner seemed to work fine on simple test cases during development, so I only discovered the issue when I ran formal evaluation on a slightly more complex folder. At that point the model was producing 63 steps for 10 files and failing 40 of them. Tracking down why — reading the raw LLM output, understanding the context drift, realizing the model was continuing to generate after it ran out of real files — took a while. The fix (changing the output format) was simple once I understood the problem, but getting there wasn't.
 
-The hardest problem was diagnosing and fixing hallucination in the planner. The step-based planner appeared to work correctly on small, simple folders during development, but produced 63 steps for a 10-file input when run under evaluation conditions. Identifying the root cause — context drift in long LLM outputs, compounded by an instruction to ``include a step for every file'' — required careful inspection of the raw LLM output and a rethink of the output format from the ground up.
-
-Evaluation design was also harder than expected. Defining ground truth for file organization requires judgment calls: is ``Finance'' the same as ``Invoices''? What about ``Billing''? Building the alias system in the ground truth JSON was necessary to make the accuracy metric meaningful, but it is still incomplete — a real evaluation would benefit from multiple human annotators and inter-annotator agreement scores.
+Evaluation design was also harder than I expected. Defining ``correct'' for a subjective task like file organization requires a lot of judgment calls. Building the alias system helped, but it's still imperfect — a real evaluation would benefit from multiple annotators comparing notes.
 
 \subsection{What I Learned}
 
-Building NeatAgent reinforced a principle that is easy to state but hard to internalize: \textit{architectural constraints are more reliable than prompt instructions}. Telling the LLM ``do not invent filenames'' in the system prompt had no effect. Changing the output format so that hallucination was structurally impossible solved the problem immediately. The lesson generalizes: when building agents, design the output schema so that errors you care about cannot be represented, rather than hoping the model will avoid them.
+The most lasting thing I took from this project is that output format is more important than model capability for agentic tasks. I spent time trying to fix the hallucination problem through better prompting with more explicit instructions, stronger warnings, different phrasing. None of it helped. Changing the structure of what the model was asked to output fixed it immediately. When you can constrain the output schema so that the error can't be represented, you've solved the problem in a way that's reliable regardless of which model you're using.
 
-I also learned that local LLMs are genuinely viable for structured, constrained agentic tasks. A 14B quantized model running on a consumer laptop can follow JSON schemas reliably, classify file content semantically, and complete a multi-step organization task — with the right prompt design. This opens up a class of privacy-sensitive automation use cases that were previously inaccessible without cloud APIs.
-
-% ─── Section 12: Planned But Didn't Do ───────────────────────────────────────
-\section{Planned But Didn't Do}
-
-\begin{itemize}
-    \item \textbf{Scanned PDF support via page rendering.} The \texttt{read\_file} tool falls back to a vision model for PDFs with no text layer, but the vision model requires image input — not raw PDF bytes. Rendering PDF pages to PNG (via \texttt{pdf2image}/\texttt{poppler}) would enable vision-based classification of scanned documents. This was deprioritized in favor of rebuilding the test PDFs as text-based.
-
-    \item \textbf{Multi-run averaging for evaluation.} Each model was evaluated in a single run per dataset. Running 3--5 times and averaging would produce more statistically reliable accuracy figures and capture variance from LLM sampling.
-
-    \item \textbf{User study.} A survey of 5--10 users rating the quality of NeatAgent's organization on their own folders would provide human-grounded accuracy data that the automated metrics approximate but cannot fully capture.
-
-    \item \textbf{Vision evaluation dataset.} The \texttt{folder-vision} test dataset (mixed images and text) exists in the repository but was not included in the formal evaluation because vision model availability (\texttt{qwen3-vl:8b}) was inconsistent during evaluation runs.
-\end{itemize}
+The other thing I learned is that small local models are more capable than I expected for tasks with a well-defined output format. A 3B model running on a laptop can organize files semantically. That's genuinely useful and opens up automation for people who can't or won't use cloud APIs.
 
 % ─── Bibliography ────────────────────────────────────────────────────────────
 \bibliographystyle{unsrt}
 
-\begin{thebibliography}{9}
+\begin{thebibliography}{6}
 
 \bibitem{erdogan2025planact}
-Lutfi Eren Erdogan, Nicholas Lee, Sehoon Kim, Suhong Moon, Hiroki Furuta, Gopala Anumanchipalli, Kurt Keutzer, and Amir Gholami.
+Lutfi Eren Erdogan et al.
 \newblock {PLAN-AND-ACT}: Improving Planning of Agents for Long-Horizon Tasks.
 \newblock {\em arXiv preprint arXiv:2503.09572}, 2025.
 \newblock \url{https://arxiv.org/pdf/2503.09572}
@@ -419,37 +347,19 @@ LangChain.
 \newblock \url{https://github.com/langchain-ai/langgraph}, 2024.
 
 \bibitem{jin2024multiagent}
-Taicheng Guo, Xiuying Chen, Yaqi Wang, Ruidi Chang, Shichao Pei, Nitesh V.\ Chawla, Olaf Wiest, and Xiangliang Zhang.
+Taicheng Guo et al.
 \newblock Large Language Model based Multi-Agents: A Survey of Progress and Challenges.
 \newblock {\em arXiv preprint arXiv:2402.01680}, 2024.
 \newblock \url{https://arxiv.org/pdf/2402.01680}
 
-\bibitem{hou2025mcp}
-Xinyi Hou, Yanjie Zhao, Shenao Wang, and Haoyu Wang.
-\newblock Model Context Protocol ({MCP}): Landscape, Security Threats, and Future Research Directions.
-\newblock {\em arXiv preprint arXiv:2503.23278}, 2025.
-\newblock \url{https://arxiv.org/abs/2503.23278}
-
-\bibitem{xiong2024agentic}
-Fouad Bousetouane.
-\newblock Agentic Systems: A Guide to Transforming Industries with Vertical {AI} Agents.
-\newblock {\em arXiv preprint arXiv:2501.00881}, 2025.
-\newblock \url{https://arxiv.org/abs/2501.00881}
-
 \bibitem{yang2024swe}
-John Yang, Carlos E.\ Jimenez, Alexander Wettig, Kilian Lieret, Shunyu Yao, Karthik Narasimhan, and Ofir Press.
+John Yang et al.
 \newblock {SWE-agent}: Agent-Computer Interfaces Enable Automated Software Engineering.
 \newblock In {\em NeurIPS}, 2024.
 \newblock \url{https://arxiv.org/abs/2405.15793}
 
-\bibitem{zhou2023webarena}
-Shuyan Zhou, Frank F.\ Xu, Hao Zhu, Xuhui Zhou, Robert Lo, Abishek Sridhar, Xianyi Cheng, Tianyue Ou, Yonatan Bisk, Daniel Fried, Uri Alon, and Graham Neubig.
-\newblock {WebArena}: A Realistic Web Environment for Building Autonomous Agents.
-\newblock {\em arXiv preprint arXiv:2307.13854}, 2023.
-\newblock \url{https://arxiv.org/abs/2307.13854}
-
 \bibitem{asai2023selfrag}
-Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and Hannaneh Hajishirzi.
+Akari Asai et al.
 \newblock Self-{RAG}: Learning to Retrieve, Generate, and Critique through Self-Reflection.
 \newblock {\em arXiv preprint arXiv:2310.11511}, 2023.
 \newblock \url{https://arxiv.org/abs/2310.11511}
@@ -462,34 +372,7 @@ Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and Hannaneh Hajishirzi.
 \section*{Appendix}
 \addcontentsline{toc}{section}{Appendix}
 
-\subsection{System Architecture Diagram}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\linewidth]{NeatAgent_1.png}
-    \caption{NeatAgent PLAN-AND-ACT State Machine}
-    \vspace{1em}
-    \begin{minipage}{0.9\linewidth}
-        \small
-        \textbf{Note:} The Planner generates a validated \texttt{\{filename $\to$ folder\}} mapping; Python converts it to a deterministic step list. The Executor runs one step per graph invocation. The Reflector intercepts failures and routes to retry, skip, or replan.
-    \end{minipage}
-    \label{fig:arch-appendix}
-\end{figure}
-
-\subsection{Ground Truth Schema}
-
-\begin{lstlisting}[language={}]
-{
-  "file4.pdf": {
-    "expected_folder": "invoices",
-    "folder_aliases": ["Finance", "Bills", "Receipts"],
-    "expected_name": null,
-    "content_hint": "Invoice from Acme Corp, March 2026"
-  }
-}
-\end{lstlisting}
-
-\subsection{Planner Prompt (Mapping Format)}
+\subsection{Planner Prompt}
 
 \begin{lstlisting}[language={}]
 You are a file organization assistant. Given a list of files,
@@ -504,16 +387,26 @@ Output schema -- one key per file, exactly:
 }
 
 Rules:
-- Output a key for EVERY file in the listing. No more, no less.
-  Never invent filenames.
-- folder: short, meaningful name (Finance, Health, Work, etc.)
+- Output a key for EVERY file. No more, no less. Never invent filenames.
+- folder: short, meaningful name (Finance, Health, Work, Photos, etc.)
 - rename: snake_case stem only -- set only when filename is generic.
 - Use CONTENT and IMAGE hints to classify accurately.
 Output ONLY valid JSON. No markdown, no explanation.
 \end{lstlisting}
 
-\subsection{Course Feedback (Optional)}
+\subsection{Ground Truth Schema}
 
-The project-based structure of this course was highly effective. Implementing an agent from scratch, rather than wrapping an API, forced engagement with the real challenges of agentic systems: hallucination, error recovery, evaluation design, and the gap between ``it works on my test case'' and ``it works reliably.'' One suggestion: a mid-semester peer demo session (in addition to the final demo) would give students earlier feedback on architecture decisions before they are too costly to change.
+\begin{lstlisting}[language={}]
+"file4.pdf": {
+  "expected_folder": "invoices",
+  "folder_aliases": ["Finance", "Bills", "Receipts"],
+  "expected_name": null,
+  "content_hint": "Invoice from Acme Corp, March 2026"
+}
+\end{lstlisting}
+
+\subsection{Course Feedback}
+
+TODO
 
 \end{document}
