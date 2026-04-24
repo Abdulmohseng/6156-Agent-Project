@@ -1,0 +1,135 @@
+{
+  "timestamp": "2026-04-24_09-58-25",
+  "results": [
+    {
+      "run_id": "2026-04-24_09-57-12",
+      "dataset": "model_test",
+      "model": "llama3.2:3b",
+      "goal": "Organize files semantically by content and type",
+      "timestamp": "2026-04-24T09:57:13",
+      "structural": {
+        "total_files": 10,
+        "files_placed": 10,
+        "files_folder_matched": 6,
+        "coverage": 1.0,
+        "placement_accuracy": 0.6,
+        "per_file": [
+          {
+            "original_name": "file1.txt",
+            "final_name": "file1.txt",
+            "expected_folder": "invoices",
+            "actual_folder": "Finance",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file2.txt",
+            "final_name": "file2.txt",
+            "expected_folder": "personal_logs",
+            "actual_folder": "Personal",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file3.txt",
+            "final_name": "file3.txt",
+            "expected_folder": "health",
+            "actual_folder": "Work",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file4.pdf",
+            "final_name": "file4.pdf",
+            "expected_folder": "invoices",
+            "actual_folder": "Finance",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file5.pdf",
+            "final_name": "file5.pdf",
+            "expected_folder": "health",
+            "actual_folder": "Finance",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file6.jpg",
+            "final_name": "file6.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Personal",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file7.jpg",
+            "final_name": "file7.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Food",
+            "placed": true,
+            "folder_match": false
+          },
+          {
+            "original_name": "file8.jpg",
+            "final_name": "file8.jpg",
+            "expected_folder": "photos",
+            "actual_folder": "Nature",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file9.csv",
+            "final_name": "file9.csv",
+            "expected_folder": "datasets",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": true
+          },
+          {
+            "original_name": "file10.csv",
+            "final_name": "file10.csv",
+            "expected_folder": "datasets",
+            "actual_folder": "Data",
+            "placed": true,
+            "folder_match": true
+          }
+        ]
+      },
+      "judge": {
+        "score": 5,
+        "reasoning": "The agent has organized some files correctly but many are misclassified or placed in incorrect folders.",
+        "strengths": [
+          "All files were moved out of the root directory, ensuring good coverage."
+        ],
+        "weaknesses": [
+          "Significant misclassifications and incorrect folder placements for several files."
+        ],
+        "folder_quality": "fair",
+        "naming_quality": "fair",
+        "coverage_assessment": "All files were handled.",
+        "judge_model": "qwen2.5-coder:14b"
+      },
+      "agent_summary": {
+        "plan_steps": 16,
+        "steps_completed": 16,
+        "steps_failed": 0,
+        "steps_skipped": 0,
+        "replans": 0,
+        "files_moved": 10,
+        "folders_created": 6,
+        "files_renamed": 0,
+        "duration_seconds": 30.91
+      }
+    }
+  ],
+  "aggregate": {
+    "llama3.2:3b": {
+      "num_runs": 1,
+      "avg_coverage": 1.0,
+      "avg_placement_accuracy": 0.6,
+      "avg_judge_score": 5.0,
+      "avg_duration_seconds": 30.9
+    }
+  }
+}
