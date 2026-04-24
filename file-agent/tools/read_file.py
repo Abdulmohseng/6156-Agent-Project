@@ -76,9 +76,9 @@ def read_file(path: str, max_chars: int = 3000, model: str = "qwen3:8b") -> dict
                             pages_text.append(t)
                     raw = "\n".join(pages_text)
                 if len(raw) < 50:
-                    # Scanned PDF — try vision model
-                    content = _describe_image(path, config_vision.VISION_MODEL)
-                    file_type = "pdf-vision"
+                    # Scanned/image PDF — no text layer; can't extract content
+                    content = ""
+                    file_type = "pdf-scanned"
                 else:
                     if len(raw) > max_chars:
                         content = raw[:max_chars]

@@ -23,6 +23,7 @@ from config import (
     AMBIGUOUS_STEMS,
     CONTENT_PREVIEW_MAX_BYTES,
     CONTENT_PREVIEW_MAX_CHARS,
+    DOCUMENT_EXTENSIONS,
     PLANNER_NUM_PREDICT,
     TEXT_EXTENSIONS,
 )
@@ -83,6 +84,21 @@ def _collect_file_info(files: list[dict]) -> tuple[list[str], dict[str, str]]:
                 f'  "{f["name"]}" ({f["extension"] or "no ext"}, {size_kb}KB)\n'
                 f"    CONTENT: {preview}"
             )
+
+        elif f["extension"] in DOCUMENT_EXTENSIONS and ambiguous:
+            log_info(f"[PLANNER] Extracting content from document: {f['name']}")
+            result = _read_file.invoke({"path": f["full_path"], "max_chars": CONTENT_PREVIEW_MAX_CHARS})
+            preview = result.get("content", "").strip().replace("\n", " ↵ ")[:CONTENT_PREVIEW_MAX_CHARS]
+            if preview:
+                lines.append(
+                    f'  "{f["name"]}" ({f["extension"]}, {size_kb}KB)\n'
+                    f"    CONTENT: {preview}"
+                )
+            else:
+                lines.append(f'  "{f["name"]}" ({f["extension"]}, {size_kb}KB)')
+
+        elif f["extension"] in DOCUMENT_EXTENSIONS:
+            lines.append(f'  "{f["name"]}" ({f["extension"]}, {size_kb}KB)')
 
         elif f["extension"] in IMAGE_EXTENSIONS:
             if ambiguous:
