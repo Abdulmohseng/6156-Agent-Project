@@ -43,20 +43,23 @@ def build_map_from_folder(folder: Path) -> dict[str, dict]:
     return result
 
 
-def score_folder(folder: Path, ground_truth: dict) -> dict:
-    """Score an organized folder against ground truth labels."""
+def score_folder(folder: Path, ground_truth: dict, name_map: dict | None = None) -> dict:
+    """
+    Score an organized folder against ground truth labels.
+
+    name_map: optional {original_filename: renamed_filename} for when the
+    organizer also renamed files (e.g. Claude Code). Without it, matching
+    is by exact filename.
+    """
     gt_files = ground_truth["files"]
     file_map = build_map_from_folder(folder)
+    name_map = name_map or {}
 
     per_file = []
     for original_name, gt_entry in gt_files.items():
-        destination = file_map.get(original_name, {})
-        # Also search by original name in case it was renamed
-        if not destination:
-            for fname, info in file_map.items():
-                if fname == original_name:
-                    destination = info
-                    break
+        # Look up by renamed name first, then fall back to original name
+        lookup_name = name_map.get(original_name, original_name)
+        destination = file_map.get(lookup_name, {})
 
         actual_folder = destination.get("final_folder") if destination else None
         final_name = destination.get("final_name", original_name) if destination else original_name
@@ -144,6 +147,9 @@ def main():
     parser.add_argument("--folder",   required=True, help="Path to the organized folder to evaluate")
     parser.add_argument("--dataset",  default="model_test", help="Ground truth dataset name (default: model_test)")
     parser.add_argument("--organizer", default="external", help="Label for who organized the folder (e.g. 'claude-code')")
+    parser.add_argument("--name-map", metavar="FILE",
+                        help="JSON file mapping original filenames to renamed filenames "
+                             "(use when the organizer also renamed files)")
     parser.add_argument("--save",     action="store_true", help="Save results JSON to eval/results/")
     args = parser.parse_args()
 
@@ -152,8 +158,13 @@ def main():
         print(f"Error: folder not found: {folder}")
         raise SystemExit(1)
 
+    name_map = {}
+    if args.name_map:
+        with open(args.name_map) as f:
+            name_map = json.load(f)
+
     ground_truth = load_ground_truth(args.dataset)
-    scores = score_folder(folder, ground_truth)
+    scores = score_folder(folder, ground_truth, name_map=name_map)
     print_results(scores, folder, args.dataset, args.organizer)
 
     if args.save:

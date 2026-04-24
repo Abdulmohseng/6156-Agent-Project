@@ -45,18 +45,25 @@
 % ─── Synopsis ────────────────────────────────────────────────────────────────
 \section*{Synopsis}
 
-NeatAgent is a local AI agent that organizes files on your machine. You point it at a folder, it reads the contents of your files, groups them into meaningful subfolders, renames anything with a generic name, shows you the plan, and executes it after you approve. Nothing leaves your machine — no cloud API, no subscription, no internet connection needed.
+NeatAgent is a local AI agent that organizes files on your machine. You point it at a folder, it reads the contents of your files, groups them into meaningful subfolders, renames anything with a generic name, shows you the plan, and executes it after you approve. Nothing leaves your machine which means no cloud API, no subscription, no internet connection needed.
 
 The agent is built on a \textbf{PLAN-AND-ACT} loop: it creates a complete plan before touching anything, then executes one step at a time. If a step fails, a Reflector node decides whether to retry, skip, or replan. The whole thing is wired together using \textbf{LangGraph}, a library for building graph-based agent workflows, and runs inference locally through \textbf{Ollama}, which serves open-weight language models on your own hardware.
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{neatagent_images/plan-and-act.png}
+    \caption{Overview of the Plan-and-Act framework, illustrating the separation between high-level planning and step-by-step execution}
+    \label{fig:architecture}
+\end{figure}
+
 One thing that made the project interesting was figuring out how to get small local models to produce reliable, structured output. I went through a few iterations before landing on the current design, and a lot of the work ended up being about preventing the model from hallucinating files that don't exist. I'll explain how I solved that in the Novelty section.
 
-For evaluation, I created a dataset of 10 files with generic names (file1.txt, file4.pdf, etc.) covering different content types — invoices, health reports, gym logs, photos, and CSVs. The goal was to see whether the agent could classify files correctly based on \textit{content} alone, since the filenames give no signal. I compared three models of different sizes: \texttt{qwen2.5-coder:14b}, \texttt{qwen3:8b}, and \texttt{llama3.2:3b}.
+For evaluation, I created a dataset of 10 files with generic names (file1.txt, file4.pdf, etc.) covering different content types such as invoices, health reports, gym logs, photos, and CSVs. The goal was to see whether the agent could classify files correctly based on \textit{content} alone, since the filenames give no signal. I compared three models of different sizes: \texttt{qwen2.5-coder:14b}, \texttt{qwen3:8b}, and \texttt{llama3.2:3b}.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\linewidth]{NeatAgent_architecture.png}
-    \caption{NeatAgent architecture — Planner, Executor, and Reflector nodes connected through a shared state}
+    \caption{PLAN-AND-ACT architecture}
     \label{fig:architecture}
 \end{figure}
 
@@ -183,23 +190,28 @@ I wanted to understand which components were doing the real work versus which on
 
 The mapping-based planner was the biggest single change — it took the system from completely broken (condition 1) to functional (condition 2). Content previews added about 20 points of placement accuracy for files with ambiguous names. The Reflector didn't change the numbers on the clean \texttt{model\_test} runs, but it recovered gracefully during development when files were already moved or folders already existed.
 
-\subsection{RQ3: Does model size make a meaningful difference?}
+\subsection{RQ3: How do local models compare to each other and to a frontier model?}
+
+To get a more complete picture, I also evaluated Claude Code (claude-sonnet-4-6, Anthropic's frontier model) on the same dataset. Claude Code operated directly on the files rather than through the NeatAgent pipeline, so I built a separate folder-based evaluator (\texttt{eval/eval\_folder.py}) that scores any organized folder against the ground truth without requiring a manifest. Claude Code also renamed every file to a descriptive name, so I recorded the rename mapping and passed it to the evaluator.
 
 \begin{table}[H]
 \centering
-\caption{Three models on \texttt{model\_test} — full pipeline}
-\begin{tabular}{lrrrr}
+\caption{\texttt{model\_test} results — NeatAgent (three local models) vs.\ Claude Code}
+\begin{tabular}{lrrrrr}
 \toprule
-\textbf{Model} & \textbf{Size} & \textbf{Coverage} & \textbf{Placement Acc.} & \textbf{Time} \\
+\textbf{System} & \textbf{Model} & \textbf{Coverage} & \textbf{Placement Acc.} & \textbf{Renamed files} & \textbf{Time} \\
 \midrule
-\texttt{qwen2.5-coder:14b} & 14B & 100\% & $\sim$60\% & $\sim$90s \\
-\texttt{qwen3:8b}          &  8B & 100\% & $\sim$50\% & $\sim$70s \\
-\texttt{llama3.2:3b}       &  3B & 100\% & $\sim$40\% & $\sim$40s \\
+NeatAgent & \texttt{qwen2.5-coder:14b} & 100\% & 60\% & yes & $\sim$90s \\
+NeatAgent & \texttt{qwen3:8b}          & 100\% & 50\% & yes & $\sim$70s \\
+NeatAgent & \texttt{llama3.2:3b}       & 100\% & 40\% & yes & $\sim$40s \\
+Claude Code & claude-sonnet-4-6        & 100\% & \textbf{80\%} & yes & interactive \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-All three models moved every file (100\% coverage). Accuracy scaled with size, but even the 3B model produced a reasonable organization — it just tended to use broader folder names and occasionally confused related categories (e.g., putting a health CSV into a Fitness folder instead of Data).
+Claude Code achieved 80\% placement accuracy — the highest of all systems tested — and also produced the most descriptive renames (e.g., \texttt{file4.pdf} became \texttt{cloud\_services\_invoice\_2026\_0412.pdf}). The two misses were \texttt{file3.txt} (gym log) and \texttt{file5.pdf} (health report), both placed in \texttt{personal/} rather than a dedicated \texttt{health/} folder. Claude Code chose to merge health and personal into one broader category, which is a reasonable organizational choice even if it doesn't match the ground truth exactly.
+
+All four systems achieved 100\% coverage. The gap between the best local model (60\%) and Claude Code (80\%) is meaningful but not as large as one might expect. NeatAgent with \texttt{qwen2.5-coder:14b} closes about two-thirds of the gap while running entirely offline and for free.
 
 \begin{figure}[H]
     \centering
@@ -261,11 +273,9 @@ The pipeline has four parts:
 
 \subsection{Metrics}
 
-\textbf{Coverage} — what fraction of files were moved at all:
-\[\text{Coverage} = \frac{|\{f : \text{final\_folder}(f) \neq \text{root}\}|}{|\text{files}|}\]
+\textbf{Coverage} — what fraction of files were moved at all.
 
-\textbf{Placement Accuracy} — what fraction landed in the right folder (exact or alias match):
-\[\text{Accuracy} = \frac{|\{f : \text{final\_folder}(f) \in \text{aliases}(f)\}|}{|\text{files}|}\]
+\textbf{Placement Accuracy} — what fraction landed in the right folder (exact or alias match).
 
 \textbf{LLM-as-Judge Score (1--10)} — a local Ollama model sees the organized folder structure and the ground truth, and scores the overall quality with reasoning. Scores of 4--5/10 came back consistently, which was lower than the structural metrics suggested. After looking at the reasoning, the judge was penalizing folder names like ``Invoices'' when it would have preferred ``Finance'' — even though both are correct. This highlights that file organization is inherently subjective.
 
@@ -310,7 +320,7 @@ Evaluation design was also harder than I expected. Defining ``correct'' for a su
 
 \subsection{What I Learned}
 
-The most lasting thing I took from this project is that output format is more important than model capability for agentic tasks. I spent time trying to fix the hallucination problem through better prompting — more explicit instructions, stronger warnings, different phrasing. None of it helped. Changing the \textit{structure} of what the model was asked to output fixed it immediately. When you can constrain the output schema so that the error can't be represented, you've solved the problem in a way that's reliable regardless of which model you're using.
+The most lasting thing I took from this project is that output format is more important than model capability for agentic tasks. I spent time trying to fix the hallucination problem through better prompting with more explicit instructions, stronger warnings, different phrasing. None of it helped. Changing the structure of what the model was asked to output fixed it immediately. When you can constrain the output schema so that the error can't be represented, you've solved the problem in a way that's reliable regardless of which model you're using.
 
 The other thing I learned is that small local models are more capable than I expected for tasks with a well-defined output format. A 3B model running on a laptop can organize files semantically. That's genuinely useful and opens up automation for people who can't or won't use cloud APIs.
 
@@ -397,6 +407,6 @@ Output ONLY valid JSON. No markdown, no explanation.
 
 \subsection{Course Feedback}
 
-The project structure was effective. Actually building an agent — not just reading about them — made it clear where the real difficulties are. One suggestion: a mid-semester peer review session would help students catch architectural mistakes before they're too embedded to change.
+TODO
 
 \end{document}
