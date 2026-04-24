@@ -134,45 +134,6 @@ python run.py
 
 Asks which folder and what goal, then runs the agent. Handles first-time setup automatically.
 
-### Direct CLI
-
-```bash
-cd file-agent
-
-# Organize a folder
-python agent.py "Organize my downloads by content" --folder ~/Downloads
-
-# Preview plan only — no files modified
-python agent.py "Sort by category" --folder ~/Desktop --dry-run
-
-# Run on built-in test data (safe for trying out)
-python agent.py "Organize by content" --test-run
-
-# Confirm each move/rename individually before it runs
-python agent.py "Clean up" --folder ~/Documents --safe
-
-# Use a different model
-python agent.py "Organize" --model qwen3:8b --test-run
-
-# Auto-approve plan (for scripted/evaluation runs)
-python agent.py "Organize files semantically" --test-run --yes
-```
-
-### Full CLI reference
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `goal` | *(required)* | Natural language instruction |
-| `--folder PATH` | — | Target folder (omit to use `--test-run`) |
-| `--test-run` | off | Copy built-in test data to `data/output/` and run there |
-| `--dry-run` | off | Show plan only, touch nothing |
-| `--safe` | off | Confirm each destructive step individually |
-| `--verbose` | off | Print full tool output per step |
-| `--mode` | `plan-and-act` | Agent mode: `plan-and-act`, `reactive`, or `direct` |
-| `--model` | `qwen2.5-coder:14b` | Any Ollama model name |
-| `--yes` / `-y` | off | Auto-approve plan (for non-interactive/scripted runs) |
-
-Every run saves a full audit manifest to `~/.file-agent/runs/<run_id>/manifest.json`.
 
 ---
 
@@ -206,6 +167,8 @@ The `eval/` directory contains a full evaluation pipeline for measuring how accu
 | Coverage | Fraction of files moved out of the root (not left behind) |
 | Placement Accuracy | Fraction of files placed in the correct semantic folder (with synonym matching) |
 | Judge Score | 1–10 quality rating from a local LLM evaluating folder structure, naming, and completeness |
+
+![Evaluation](docs/images/NeatAgent_4.png)
 
 ### Test datasets
 
