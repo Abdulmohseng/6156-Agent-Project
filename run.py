@@ -16,6 +16,11 @@ SETUP_DIR    = ROOT / "setup"
 REQUIREMENTS = ROOT / "requirements.txt"
 RECENTS_FILE = Path.home() / ".file-agent" / "recents.json"
 DEFAULT_MODEL = "qwen2.5-coder:14b"  # mirrors file-agent/config.py
+DEFAULT_GOAL  = (                     # mirrors file-agent/config.py
+    "Organize files into meaningful semantic folders based on their content, "
+    "and rename any file with a generic or unclear name to a short descriptive "
+    "snake_case name that reflects what the file actually contains."
+)
 
 VENV_PYTHON = VENV / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 
@@ -166,21 +171,6 @@ def _ask_folder() -> str:
 
     return str(folder)
 
-
-def _ask_goal() -> str:
-    import questionary
-
-    goal = questionary.text(
-        "What would you like to do with the files?",
-        instruction="e.g. Organize by type, Sort by date, Group photos by location",
-        default="Organize by type",
-        style=QS_STYLE,
-    ).ask()
-
-    if goal is None:
-        sys.exit(0)
-
-    return goal.strip()
 
 
 def _ask_options(presets: list[str]) -> list[str]:
@@ -349,9 +339,6 @@ if __name__ == "__main__":
         if folder == TEST_FOLDER_PATH:
             folder = None  # same protection when selected via picker
 
-    # ── Goal ───────────────────────────────────────────────────────────────────
-    goal = _ask_goal()
-
     # ── Vision model ───────────────────────────────────────────────────────────
     chosen_vision_model = _ask_vision_model(args.vision_model)
 
@@ -368,4 +355,4 @@ if __name__ == "__main__":
     # ── Run ────────────────────────────────────────────────────────────────────
     if folder:
         _save_recent(folder)
-    _run_agent(goal, folder, flags)
+    _run_agent(DEFAULT_GOAL, folder, flags)

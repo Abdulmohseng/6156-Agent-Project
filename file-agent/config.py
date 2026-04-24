@@ -10,13 +10,20 @@ from pathlib import Path
 # ── Model ──────────────────────────────────────────────────────────────────────
 DEFAULT_MODEL = "qwen2.5-coder:14b"
 
+# ── Goal ───────────────────────────────────────────────────────────────────────
+DEFAULT_GOAL = (
+    "Organize files into meaningful semantic folders based on their content, "
+    "and rename any file with a generic or unclear name to a short descriptive "
+    "snake_case name that reflects what the file actually contains."
+)
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
 RUNS_DIR = Path.home() / ".file-agent" / "runs"
 TEST_FOLDER = "model_test"
 
 # ── Planner ────────────────────────────────────────────────────────────────────
-PLANNER_NUM_PREDICT = 8192
+PLANNER_NUM_PREDICT = 2048  # mapping output is ~50 tokens/file, much shorter than step lists
 CONTENT_PREVIEW_MAX_CHARS = 400
 CONTENT_PREVIEW_MAX_BYTES = 8192
 
@@ -44,3 +51,4 @@ SKIP_ERROR_PATTERNS = (
 
 # ── Executor ───────────────────────────────────────────────────────────────────
 DESTRUCTIVE_TOOLS = {"move_file", "rename_file"}
+MAX_RUN_SECONDS = 400  # hard wall-clock timeout per run
