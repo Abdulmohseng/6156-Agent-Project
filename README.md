@@ -171,6 +171,9 @@ Full Claude Code run results: `eval/results/folder_eval_2026-04-24_17-50-13_clau
 
 The step-based planner (the original design, before the mapping-based rewrite) also serves as a baseline — it produced 63 steps with 40 failures and ~42 hallucinated filenames for the same 10 files, making it unusable. Ablation details are in `docs/paper.tex` Section 3.
 
+### External System (Claude Code)
+Claude Code/Claude co-work is able to performa similar operations and was evaluated against NeatAGent. Read more about [Claude Code](https://code.claude.com/docs/en/overview)
+
 ### How to replicate the evaluation
 
 ```bash
