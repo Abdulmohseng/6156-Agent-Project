@@ -131,7 +131,7 @@ AI generation of code, test data, and documentation was used throughout this pro
 | `llama3.2:3b` via Ollama | Evaluation comparison model | `temperature=0` |
 | `qwen3-vl:8b` via Ollama | Vision model for image content classification | `temperature=0` |
 
-The 10-file `model_test` dataset (file1.txt–file10.csv) was created with Claude Code assistance. All generated code and data was reviewed and tested by the author.
+The 10-file `model_test` dataset (file1.txt–file10.csv) was created with Claude Code assistance. All generated code and data was reviewed and tested.
 
 ---
 
