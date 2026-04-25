@@ -203,7 +203,6 @@ Results are saved to `eval/results/` as JSON and displayed as a color-coded term
 
 | Document | Location |
 |----------|----------|
-| Project proposal | `docs/project_proposal.pdf` |
-| Progress report | `docs/NeatAgent.pdf` |
-| Final report | `docs/final_report.md` |
-| Paper (LaTeX) | `docs/paper.tex` |
+| Project proposal | `docs/Project_Proposal.pdf` |
+| Progress report | `docs/NeatAgent_Progress-Report.pdf` |
+| Final report | `docs/NeatAgent_Final-Report.pdf` |
